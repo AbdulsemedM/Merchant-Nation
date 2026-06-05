@@ -8,6 +8,13 @@ const IDLE_MAX_AGE_SECONDS = 5 * 60;
 const secureCookie =
   process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 
+// External webhooks/cron must bypass session auth (they use their own secrets).
+const PUBLIC_API_PATHS = new Set([
+  "/api/notifications/telegram/webhook",
+  "/api/notifications/facebook/webhook",
+  "/api/notifications/scheduled",
+]);
+
 const CORS_HEADERS = [
   { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
   { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, Next-Action, RSC" },
@@ -38,7 +45,11 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/api-docs" || pathname === "/openapi.yaml") {
+  if (
+    pathname === "/api-docs" ||
+    pathname === "/openapi.yaml" ||
+    PUBLIC_API_PATHS.has(pathname)
+  ) {
     return addCors(NextResponse.next(), origin);
   }
 
