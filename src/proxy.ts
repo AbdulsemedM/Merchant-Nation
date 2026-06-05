@@ -12,6 +12,7 @@ const secureCookie =
 const PUBLIC_API_PATHS = new Set([
   "/api/notifications/telegram/webhook",
   "/api/notifications/facebook/webhook",
+  "/api/notifications/whatsapp/webhook",
   "/api/notifications/scheduled",
 ]);
 

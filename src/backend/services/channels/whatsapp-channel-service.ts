@@ -4,6 +4,10 @@ type WhatsAppPayload = {
   message: string;
 };
 
+function normalizeWhatsAppPhone(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
 export async function sendWhatsAppNotification(
   payload: WhatsAppPayload,
 ): Promise<{ ok: boolean; error?: string }> {
@@ -12,6 +16,9 @@ export async function sendWhatsAppNotification(
   if (!token || !phoneNumberId) {
     return { ok: false, error: "Missing WhatsApp API config" };
   }
+
+  const to = normalizeWhatsAppPhone(payload.phone);
+  if (!to) return { ok: false, error: "Missing WhatsApp phone number" };
 
   const res = await fetch(
     `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`,
@@ -23,7 +30,7 @@ export async function sendWhatsAppNotification(
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: payload.phone,
+        to,
         type: "text",
         text: {
           body: `${payload.title}\n${payload.message}`,
