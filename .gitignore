@@ -44,5 +44,7 @@ next-env.d.ts
 # PWA service worker (generated at build time)
 public/sw.js
 public/workbox-*.js
+public/swe-worker-*.js
 public/sw.js.map
 public/workbox-*.js.map
+public/swe-worker-*.js.map

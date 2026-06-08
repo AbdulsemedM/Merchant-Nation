@@ -116,6 +116,7 @@ async function sendToChannel(
       });
     case "WEB_PUSH":
       return sendWebPushNotification({
+        subscription: prefChannels.WEB_PUSH.webPushSubscription,
         endpoint: prefChannels.WEB_PUSH.webPushEndpoint,
         title: input.title,
         message: input.message,

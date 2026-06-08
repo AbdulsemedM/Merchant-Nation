@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import {
   ChannelName,
   getOrCreateNotificationPreferences,
+  type WebPushSubscription,
 } from "@/backend/services/notification-preferences-service";
 
 type UpdateInput = {
@@ -16,6 +17,7 @@ type UpdateInput = {
   whatsappPhone?: string;
   facebookPsid?: string;
   webPushEndpoint?: string;
+  webPushSubscription?: WebPushSubscription;
 };
 
 export async function getMyNotificationPreferences() {
@@ -54,6 +56,10 @@ export async function updateMyNotificationPreferences(input: UpdateInput) {
   }
   if (typeof input.webPushEndpoint === "string") {
     channels.WEB_PUSH.webPushEndpoint = input.webPushEndpoint;
+  }
+  if (input.webPushSubscription) {
+    channels.WEB_PUSH.webPushSubscription = input.webPushSubscription;
+    channels.WEB_PUSH.webPushEndpoint = input.webPushSubscription.endpoint;
   }
 
   await prisma.userNotificationPreference.update({

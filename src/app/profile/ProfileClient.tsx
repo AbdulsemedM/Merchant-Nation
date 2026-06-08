@@ -37,6 +37,7 @@ import {
   getMyNotificationPreferences,
   updateMyNotificationPreferences,
 } from "@/app/actions/notification-preferences";
+import { urlBase64ToUint8Array } from "@/lib/vapid";
 
 type UserRow = {
   id: string;
@@ -771,27 +772,33 @@ function ConnectPhoneNotificationsCard({ userId }: { userId: string }) {
         return;
       }
 
-      let endpoint = "";
-      try {
-        const registration = await navigator.serviceWorker.ready;
-        const existing = await registration.pushManager.getSubscription();
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-        const subscription =
-          existing ??
-          (vapidKey
-            ? await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: vapidKey,
-              })
-            : null);
-        endpoint = subscription?.endpoint ?? "";
-      } catch {
-        // Keep channel enabled even if endpoint capture fails.
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        setStatus("Push is not configured on the server (missing VAPID key).");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+      const existing = await registration.pushManager.getSubscription();
+      const subscription =
+        existing ??
+        (await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        }));
+
+      const json = subscription.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+        setStatus("Could not capture a valid push subscription.");
+        return;
       }
 
       await updateMyNotificationPreferences({
         channels: { WEB_PUSH: { enabled: true } },
-        ...(endpoint ? { webPushEndpoint: endpoint } : {}),
+        webPushSubscription: {
+          endpoint: json.endpoint,
+          keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+        },
       });
       setPushEnabled(true);
       setStatus("Push notifications enabled.");

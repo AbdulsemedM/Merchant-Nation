@@ -8,12 +8,23 @@ export type ChannelName =
   | "FACEBOOK"
   | "WEB_PUSH";
 
+export type WebPushSubscriptionKeys = {
+  p256dh: string;
+  auth: string;
+};
+
+export type WebPushSubscription = {
+  endpoint: string;
+  keys?: WebPushSubscriptionKeys;
+};
+
 export type ChannelConfig = {
   enabled: boolean;
   telegramChatId?: string;
   whatsappPhone?: string;
   facebookPsid?: string;
   webPushEndpoint?: string;
+  webPushSubscription?: WebPushSubscription;
 };
 
 export type ChannelPreferences = Record<ChannelName, ChannelConfig>;
@@ -29,6 +40,26 @@ const DEFAULT_CHANNELS: ChannelPreferences = {
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
+}
+
+function normalizeWebPushSubscription(
+  raw: unknown,
+): WebPushSubscription | undefined {
+  if (!isObject(raw) || typeof raw.endpoint !== "string") return undefined;
+  const keysRaw = raw.keys;
+  if (!isObject(keysRaw)) {
+    return { endpoint: raw.endpoint };
+  }
+  if (
+    typeof keysRaw.p256dh !== "string" ||
+    typeof keysRaw.auth !== "string"
+  ) {
+    return { endpoint: raw.endpoint };
+  }
+  return {
+    endpoint: raw.endpoint,
+    keys: { p256dh: keysRaw.p256dh, auth: keysRaw.auth },
+  };
 }
 
 function normalizeChannels(raw: unknown): ChannelPreferences {
@@ -48,6 +79,7 @@ function normalizeChannels(raw: unknown): ChannelPreferences {
         typeof v.facebookPsid === "string" ? v.facebookPsid : undefined,
       webPushEndpoint:
         typeof v.webPushEndpoint === "string" ? v.webPushEndpoint : undefined,
+      webPushSubscription: normalizeWebPushSubscription(v.webPushSubscription),
     };
   });
   return out;
