@@ -16,6 +16,19 @@ const PUBLIC_API_PATHS = new Set([
   "/api/notifications/scheduled",
 ]);
 
+/** PWA assets in /public must be readable without a session. */
+function isPublicPwaAsset(pathname: string): boolean {
+  if (pathname === "/manifest.json" || pathname === "/sw.js") return true;
+  if (
+    pathname.startsWith("/workbox-") ||
+    pathname.startsWith("/worker-") ||
+    pathname.startsWith("/swe-worker-")
+  ) {
+    return true;
+  }
+  return false;
+}
+
 const CORS_HEADERS = [
   { key: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
   { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, Next-Action, RSC" },
@@ -75,7 +88,8 @@ export async function proxy(request: NextRequest) {
   if (
     pathname === "/api-docs" ||
     pathname === "/openapi.yaml" ||
-    PUBLIC_API_PATHS.has(pathname)
+    PUBLIC_API_PATHS.has(pathname) ||
+    isPublicPwaAsset(pathname)
   ) {
     return addCors(NextResponse.next(), origin);
   }
@@ -146,6 +160,6 @@ function addCors(res: NextResponse, origin: string | null) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.json|sw\\.js|workbox-|worker-|swe-worker-|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
