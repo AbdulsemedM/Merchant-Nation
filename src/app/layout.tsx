@@ -21,11 +21,20 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: "#00ADEF",
 };
 
 export const metadata: Metadata = {
   title: "Merchant Nation Command",
   description: "Gamified field sales app for scouting and onboarding merchants",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "MN Command",
+  },
+  icons: {
+    apple: "/icons/icon-192x192.png",
+  },
 };
 
 export default async function RootLayout({
