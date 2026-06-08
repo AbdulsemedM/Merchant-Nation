@@ -31,6 +31,8 @@ import {
   type OperationalSummaryResult,
   type OperationalSummaryFilters,
 } from "@/app/actions/operational-summary";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 import { getBranchesFromDb } from "@/app/actions/branches";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
 import {
@@ -115,7 +117,7 @@ export function OperationalSummaryClient({
     getOperationalSummary(filters)
       .then(setData)
       .catch((e) => {
-        setError(e?.message ?? "Failed to load summary");
+        setError(getUserFacingErrorMessage(e, "Failed to load summary."));
         setData(null);
       })
       .finally(() => setLoading(false));
@@ -238,7 +240,7 @@ export function OperationalSummaryClient({
       ) : null}
 
       {error && (
-        <p className="font-mono text-sm text-destructive">{error}</p>
+        <ErrorAlert message={error} />
       )}
 
       {loading ? (

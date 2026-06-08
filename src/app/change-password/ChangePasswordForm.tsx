@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { changePassword } from "@/app/actions/auth";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage, isRedirectError } from "@/lib/errors";
 
 export function ChangePasswordForm() {
-  const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -28,15 +28,13 @@ export function ChangePasswordForm() {
     }
     setSubmitting(true);
     try {
-      const res = await changePassword(currentPassword, newPassword);
-      if (res.ok) {
-        router.push("/");
-        router.refresh();
-      } else {
-        setError(res.error ?? "Failed to change password");
+      const res = await changePassword(currentPassword, newPassword, { redirect: true });
+      if (!res.ok) {
+        setError(res.error ?? "Failed to change password.");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to change password");
+      if (isRedirectError(e)) return;
+      setError(getUserFacingErrorMessage(e, "Failed to change password. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -44,9 +42,7 @@ export function ChangePasswordForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-xl border border-border bg-card p-6">
-      {error && (
-        <p className="text-sm text-destructive">{error}</p>
-      )}
+      <ErrorAlert message={error} />
       <div className="grid gap-2">
         <Label htmlFor="current">Current password</Label>
         <Input
@@ -54,7 +50,7 @@ export function ChangePasswordForm() {
           type="password"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
-          placeholder="Enter current password"
+          placeholder="Temporary or current password"
           required
           className="font-mono"
           autoComplete="current-password"

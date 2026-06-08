@@ -4,9 +4,14 @@ import { ChangePasswordForm } from "./ChangePasswordForm";
 
 export const dynamic = "force-dynamic";
 
+function homePathForRole(role: string): string {
+  return role === "PLAYER" ? "/" : "/admin/users";
+}
+
 export default async function ChangePasswordPage() {
   const session = await getServerAuthSession();
   if (!session) redirect("/login");
+  if (!session.mustChangePassword) redirect(homePathForRole(session.role));
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-md flex flex-col gap-6">
@@ -15,7 +20,7 @@ export default async function ChangePasswordPage() {
             Change your password
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            You must set a new password before continuing.
+            You must set a new password before continuing. Enter the temporary password you were given in the current password field.
           </p>
         </header>
         <ChangePasswordForm />

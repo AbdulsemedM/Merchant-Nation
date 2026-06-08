@@ -18,6 +18,8 @@ import {
   type DeploymentAssetRow,
   type CreateAssetData,
 } from "@/app/actions/deployment-assets";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 const STATUS_OPTIONS = [
   { value: "ACTIVE", label: "ACTIVE" },
@@ -78,7 +80,7 @@ export function DeploymentAssetForm({
       }
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError(getUserFacingErrorMessage(e, "Something went wrong. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -86,11 +88,7 @@ export function DeploymentAssetForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
-      )}
+      <ErrorAlert message={error} />
 
       <div className="grid gap-2">
         <Label htmlFor="asset-name">Military name (e.g. DIGITAL_RELAY)</Label>

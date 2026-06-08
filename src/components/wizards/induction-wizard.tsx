@@ -9,6 +9,7 @@ import type { KycProductsFormValues } from "@/components/wizards/induction/kyc-p
 import { OathStep } from "@/components/wizards/induction/oath-step";
 import { updateMerchantProductsAndKYC, completeInduction } from "@/app/actions/merchants";
 import { saveInductionDraft, clearInductionDraft } from "@/app/actions/induction-draft";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 const STEPS = ["Verify", "KYC & Products", "The Oath"] as const;
 
@@ -129,7 +130,7 @@ export function InductionWizard({ lead, initialStep = 0, initialKycValues }: Ind
         />
       )}
 
-      {error && <p className="text-destructive text-sm">{error}</p>}
+      <ErrorAlert message={error} />
 
       <div className="flex gap-2">
         <Button

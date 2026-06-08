@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { authorize, type Role } from "@/lib/auth";
 import { logActivity } from "@/app/actions/activity-log";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 export type CreateTeamData = {
   name: string;
@@ -16,40 +17,44 @@ export type CreateTeamData = {
  * - BRANCH_MANAGER: can only create teams for their own branch; branchId is ignored.
  */
 export async function createTeam(data: CreateTeamData) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"] as Role[], "createTeam");
+  try {
+    const session = await authorize(["ADMIN", "BRANCH_MANAGER"] as Role[], "createTeam");
 
-  let branchId: string | null = null;
+    let branchId: string | null = null;
 
-  if (session.role === "ADMIN") {
-    branchId = data.branchId ?? null;
-    if (!branchId) throw new Error("Please select a branch for the team.");
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-      select: { id: true, name: true },
+    if (session.role === "ADMIN") {
+      branchId = data.branchId ?? null;
+      if (!branchId) throw new Error("Please select a branch for the team.");
+      const branch = await prisma.branch.findUnique({
+        where: { id: branchId },
+        select: { id: true, name: true },
+      });
+      if (!branch) throw new Error("Branch not found.");
+    } else {
+      if (!session.branchId) throw new Error("Branch manager has no branch assigned.");
+      branchId = session.branchId;
+    }
+
+    const team = await prisma.team.create({
+      data: {
+        name: data.name.trim(),
+        branchId,
+      },
     });
-    if (!branch) throw new Error("Branch not found.");
-  } else {
-    if (!session.branchId) throw new Error("Branch manager has no branch assigned.");
-    branchId = session.branchId;
-  }
 
-  const team = await prisma.team.create({
-    data: {
-      name: data.name.trim(),
+    const actor = await prisma.user.findUnique({
+      where: { id: session.id },
+      select: { name: true },
+    });
+    await logActivity(session, actor?.name ?? "User", "TEAM_CREATE", {
+      entityType: "Team",
+      entityId: team.id,
       branchId,
-    },
-  });
+      metadata: { name: team.name },
+    });
 
-  const actor = await prisma.user.findUnique({
-    where: { id: session.id },
-    select: { name: true },
-  });
-  await logActivity(session, actor?.name ?? "User", "TEAM_CREATE", {
-    entityType: "Team",
-    entityId: team.id,
-    branchId,
-    metadata: { name: team.name },
-  });
-
-  return team;
+    return team;
+  } catch (e) {
+    throw new Error(getUserFacingErrorMessage(e, "Failed to create team."));
+  }
 }

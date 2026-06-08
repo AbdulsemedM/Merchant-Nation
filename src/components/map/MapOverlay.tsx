@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Filter, Layers, Maximize2, Pencil } from "lucide-react";
+import { Filter, Landmark, Layers, Maximize2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ZONE_STATUS_COLORS,
@@ -16,7 +16,7 @@ export type InfrastructureLayerVisibility = {
 
 export const DEFAULT_INFRASTRUCTURE_LAYERS: InfrastructureLayerVisibility = {
   branches: true,
-  pos: true,
+  pos: false, // POS layer disabled for now
 };
 
 export interface MapOverlayProps {
@@ -95,7 +95,7 @@ export function MapOverlay({
     }
   }, [mapContainerRef]);
 
-  const hasInfrastructure = branchLocationCount > 0 || posLocationCount > 0;
+  const hasInfrastructure = branchLocationCount > 0;
 
   return (
     <>
@@ -110,8 +110,7 @@ export function MapOverlay({
             {hasInfrastructure && (
               <>
                 {" "}
-                • {branchLocationCount.toLocaleString()} BRANCHES •{" "}
-                {posLocationCount.toLocaleString()} POS
+                • {branchLocationCount.toLocaleString()} BRANCHES
               </>
             )}
             {" "}
@@ -172,12 +171,13 @@ export function MapOverlay({
                           onChange={() => toggleInfraLayer("branches")}
                           className="h-3.5 w-3.5 rounded border-border"
                         />
-                        <span
-                          className="inline-block size-3 shrink-0 rounded-full"
-                          style={{ backgroundColor: "#f59e0b" }}
+                        <Landmark
+                          className="size-3.5 shrink-0 text-amber-700"
+                          aria-hidden
                         />
                         Branches
                       </label>
+                      {/* POS machines hidden for now
                       <label className="mb-2 flex cursor-pointer items-center gap-2 py-1 font-mono text-xs">
                         <input
                           type="checkbox"
@@ -191,6 +191,7 @@ export function MapOverlay({
                         />
                         POS machines
                       </label>
+                      */}
                     </>
                   )}
                   <p className="mb-2 font-mono text-xs font-semibold text-foreground">
@@ -276,12 +277,10 @@ export function MapOverlay({
         {hasInfrastructure && (
           <>
             <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-              <span
-                className="size-3.5 shrink-0 rounded-full border border-border"
-                style={{ backgroundColor: "#f59e0b" }}
-              />
+              <Landmark className="size-3.5 shrink-0 text-amber-700" aria-hidden />
               <span>Branch</span>
             </div>
+            {/* POS legend hidden for now
             <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
               <span
                 className="size-3.5 shrink-0 rounded-full border border-border"
@@ -289,6 +288,7 @@ export function MapOverlay({
               />
               <span>POS</span>
             </div>
+            */}
             <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
               <span
                 className="size-3.5 shrink-0 rounded-full border border-border"

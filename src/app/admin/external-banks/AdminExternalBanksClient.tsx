@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -144,7 +146,7 @@ function ExternalBankForm({
       await onSuccess();
       setName("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create bank");
+      setError(getUserFacingErrorMessage(e, "Failed to create bank."));
     } finally {
       setSubmitting(false);
     }
@@ -153,9 +155,7 @@ function ExternalBankForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <ErrorAlert message={error} />
       )}
       <div className="grid gap-2">
         <Label htmlFor="external-bank-name">Bank name</Label>

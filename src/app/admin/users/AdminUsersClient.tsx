@@ -17,6 +17,8 @@ import { getUsersForAdmin, getTeamsForAdmin, getBranchesForAdmin, createUser, up
 import type { CreateUserData } from "@/app/actions/users";
 import type { Role } from "@/lib/auth";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 type UserRow = {
   id: string;
@@ -265,6 +267,7 @@ export function AdminUsersClient({
           callerRole={callerRole}
           teams={teams}
           branches={branches}
+          branchIdFromUrl={branchIdFromUrl}
           onClose={() => setCreateOpen(false)}
           onSuccess={async () => {
             setCreateOpen(false);
@@ -305,7 +308,7 @@ function EditProfileForm({
       await updateUser(user.id, { name: name.trim(), teamId });
       onSave();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update");
+      setError(getUserFacingErrorMessage(e, "Failed to update user."));
     } finally {
       setSubmitting(false);
     }
@@ -313,7 +316,7 @@ function EditProfileForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-muted/30 p-3">
-      {error && <p className="w-full text-sm text-destructive">{error}</p>}
+      <ErrorAlert message={error} />
       <div className="grid gap-1">
         <Label className="text-xs">Name</Label>
         <Input value={name} onChange={(e) => setName(e.target.value)} className="h-9 font-mono" required />
@@ -363,7 +366,7 @@ function ResetPasswordForm({
       if (!res.ok) throw new Error(res.error);
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(getUserFacingErrorMessage(e, "Failed to reset password."));
     } finally {
       setSubmitting(false);
     }
@@ -371,7 +374,7 @@ function ResetPasswordForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-muted/30 p-3">
-      {error && <p className="w-full text-sm text-destructive">{error}</p>}
+      <ErrorAlert message={error} />
       <div className="grid gap-1">
         <Label className="text-xs">New password for {userName}</Label>
         <Input
@@ -394,12 +397,14 @@ function CreateUserForm({
   callerRole,
   teams,
   branches,
+  branchIdFromUrl,
   onClose,
   onSuccess,
 }: {
   callerRole: Role;
   teams: TeamOption[];
   branches: BranchOption[];
+  branchIdFromUrl?: string | null;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -408,10 +413,14 @@ function CreateUserForm({
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("PLAYER");
   const [teamId, setTeamId] = useState<string | null>(null);
-  const [branchId, setBranchId] = useState<string | null>(null);
+  const [branchId, setBranchId] = useState<string | null>(branchIdFromUrl ?? null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branchSearch, setBranchSearch] = useState("");
+
+  useEffect(() => {
+    if (branchIdFromUrl != null) setBranchId(branchIdFromUrl);
+  }, [branchIdFromUrl]);
 
   const filteredBranches = useMemo(() => {
     const q = branchSearch.trim().toLowerCase();
@@ -423,7 +432,14 @@ function CreateUserForm({
     );
   }, [branches, branchSearch]);
 
+  const contextBranch = useMemo(
+    () => (branchIdFromUrl ? branches.find((b) => b.id === branchIdFromUrl) : null),
+    [branches, branchIdFromUrl]
+  );
+
   const isAdmin = callerRole === "ADMIN";
+  const showBranchPicker =
+    role === "BRANCH_MANAGER" && isAdmin && !branchIdFromUrl && branches.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -437,13 +453,13 @@ function CreateUserForm({
         role,
         teamId: teamId || undefined,
       };
-      if (role === "BRANCH_MANAGER" && isAdmin) {
-        data.branchId = branchId ?? undefined;
+      if (isAdmin && role !== "ADMIN") {
+        data.branchId = branchIdFromUrl ?? branchId ?? undefined;
       }
       await createUser(data);
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create user");
+      setError(getUserFacingErrorMessage(e, "Failed to create user."));
     } finally {
       setSubmitting(false);
     }
@@ -459,9 +475,7 @@ function CreateUserForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {error && (
-            <p className="text-destructive text-sm">{error}</p>
-          )}
+          <ErrorAlert message={error} />
           <div className="grid gap-2">
             <Label htmlFor="name">Name</Label>
             <Input
@@ -536,7 +550,16 @@ function CreateUserForm({
               </Select>
             </div>
           )}
-          {role === "BRANCH_MANAGER" && isAdmin && branches.length > 0 && (
+          {role === "BRANCH_MANAGER" && isAdmin && branchIdFromUrl && contextBranch && (
+            <div className="grid gap-2">
+              <Label>Branch</Label>
+              <p className="font-mono text-sm text-muted-foreground">
+                {contextBranch.companyName}
+                {contextBranch.branchCode ? ` (${contextBranch.branchCode})` : ""}
+              </p>
+            </div>
+          )}
+          {showBranchPicker && (
             <div className="grid gap-2">
               <Label htmlFor="branch-search">Search branch</Label>
               <Input

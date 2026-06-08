@@ -16,6 +16,8 @@ import {
 import { createTeam } from "@/app/actions/teams";
 import { getTeamsForAdmin, getBranchesForAdmin } from "@/app/actions/users";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 type TeamRow = {
   id: string;
@@ -154,6 +156,7 @@ export function AdminTeamsClient({
         <CreateTeamForm
           callerRole={callerRole}
           branches={branches}
+          branchIdFromUrl={branchIdFromUrl}
           onClose={() => setCreateOpen(false)}
           onSuccess={async () => {
             setCreateOpen(false);
@@ -168,19 +171,25 @@ export function AdminTeamsClient({
 function CreateTeamForm({
   callerRole,
   branches,
+  branchIdFromUrl,
   onClose,
   onSuccess,
 }: {
   callerRole: Role;
   branches: BranchOption[];
+  branchIdFromUrl?: string | null;
   onClose: () => void;
   onSuccess: () => void;
 }) {
   const [name, setName] = useState("");
-  const [branchId, setBranchId] = useState<string | null>(null);
+  const [branchId, setBranchId] = useState<string | null>(branchIdFromUrl ?? null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [branchSearch, setBranchSearch] = useState("");
+
+  useEffect(() => {
+    if (branchIdFromUrl != null) setBranchId(branchIdFromUrl);
+  }, [branchIdFromUrl]);
 
   const filteredBranches = useMemo(() => {
     const q = branchSearch.trim().toLowerCase();
@@ -192,6 +201,15 @@ function CreateTeamForm({
     );
   }, [branches, branchSearch]);
 
+  const contextBranch = useMemo(
+    () => (branchIdFromUrl ? branches.find((b) => b.id === branchIdFromUrl) : null),
+    [branches, branchIdFromUrl]
+  );
+
+  const isAdmin = callerRole === "ADMIN";
+  const showBranchPicker = isAdmin && !branchIdFromUrl && branches.length > 0;
+  const resolvedBranchId = branchIdFromUrl ?? branchId;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -199,11 +217,11 @@ function CreateTeamForm({
     try {
       await createTeam({
         name: name.trim(),
-        ...(callerRole === "ADMIN" && { branchId: branchId ?? undefined }),
+        ...(isAdmin && { branchId: resolvedBranchId ?? undefined }),
       });
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create team");
+      setError(getUserFacingErrorMessage(e, "Failed to create team."));
     } finally {
       setSubmitting(false);
     }
@@ -219,8 +237,17 @@ function CreateTeamForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          {callerRole === "ADMIN" && (
+          <ErrorAlert message={error} />
+          {isAdmin && branchIdFromUrl && contextBranch && (
+            <div className="grid gap-2">
+              <Label>Branch</Label>
+              <p className="font-mono text-sm text-muted-foreground">
+                {contextBranch.companyName}
+                {contextBranch.branchCode ? ` (${contextBranch.branchCode})` : ""}
+              </p>
+            </div>
+          )}
+          {showBranchPicker && (
             <div className="grid gap-2">
               <Label htmlFor="branch-search">Search branch</Label>
               <Input
@@ -267,7 +294,7 @@ function CreateTeamForm({
               disabled={
                 submitting ||
                 !name.trim() ||
-                (callerRole === "ADMIN" && !branchId)
+                (isAdmin && !resolvedBranchId)
               }
             >
               {submitting ? "Creating…" : "Create"}

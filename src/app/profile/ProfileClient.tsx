@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout, changePassword } from "@/app/actions/auth";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 import { updateMyDisplayName } from "@/app/actions/users";
 import { ContributionHeatmap } from "@/components/gamification/ContributionHeatmap";
 import { StreakTracker } from "@/components/gamification/StreakTracker";
@@ -274,7 +276,7 @@ export function ProfileClient({
               disabled={displayNameSaving}
             />
             {displayNameError ? (
-              <p className="font-mono text-xs text-destructive">{displayNameError}</p>
+              <ErrorAlert message={displayNameError} />
             ) : null}
             {displayNameSuccess ? (
               <p className="font-mono text-xs text-green-600 dark:text-green-400">
@@ -481,9 +483,7 @@ export function ProfileClient({
                     }
                   } catch (err) {
                     setChangePwError(
-                      err instanceof Error
-                        ? err.message
-                        : "Failed to change password",
+                      getUserFacingErrorMessage(err, "Failed to change password."),
                     );
                   } finally {
                     setChangePwSubmitting(false);
@@ -493,9 +493,7 @@ export function ProfileClient({
                 {changePwSuccess && (
                   <p className="text-sm text-green-600">Password updated.</p>
                 )}
-                {changePwError && (
-                  <p className="text-sm text-destructive">{changePwError}</p>
-                )}
+                <ErrorAlert message={changePwError} />
                 <div className="grid gap-2">
                   <Label htmlFor="profile-current-pw">Current password</Label>
                   <Input

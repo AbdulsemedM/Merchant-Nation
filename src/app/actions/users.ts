@@ -1,9 +1,9 @@
 "use server";
 
 import type { Role } from "@/lib/auth";
-import { authorize, type AuthSession, hashPassword } from "@/lib/auth";
 import type * as usersService from "@/backend/services/users-service";
 import * as users from "@/backend/services/users-service";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 export type CreateUserData = usersService.CreateUserData;
 export type UpdateUserData = usersService.UpdateUserData;
@@ -39,7 +39,11 @@ export async function getUsersForAdmin(
 }
 
 export async function createUser(data: CreateUserData) {
-  return users.createUser(data);
+  try {
+    return await users.createUser(data);
+  } catch (e) {
+    throw new Error(getUserFacingErrorMessage(e, "Failed to create user."));
+  }
 }
 
 export async function updateUserRole(userId: string, newRole: Role) {
@@ -47,7 +51,11 @@ export async function updateUserRole(userId: string, newRole: Role) {
 }
 
 export async function updateUser(userId: string, data: UpdateUserData) {
-  return users.updateUser(userId, data);
+  try {
+    return await users.updateUser(userId, data);
+  } catch (e) {
+    throw new Error(getUserFacingErrorMessage(e, "Failed to update user."));
+  }
 }
 
 export async function updateMyDisplayName(name: string) {
@@ -55,7 +63,11 @@ export async function updateMyDisplayName(name: string) {
 }
 
 export async function resetUserPassword(userId: string, newPassword: string) {
-  return users.resetUserPassword(userId, newPassword);
+  try {
+    return await users.resetUserPassword(userId, newPassword);
+  } catch (e) {
+    return { ok: false as const, error: getUserFacingErrorMessage(e, "Failed to reset password.") };
+  }
 }
 
 export async function getTeamsForAdmin(branchIdFilter?: string | null, options?: { limit?: number; offset?: number }) {

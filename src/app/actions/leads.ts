@@ -10,6 +10,7 @@ import { logActivity } from "@/app/actions/activity-log";
 import { updateUserStreak } from "@/backend/services/streak-service";
 import { checkAndUnlockAchievements } from "@/backend/services/achievement-service";
 import { routeNotification } from "@/backend/services/notification-router-service";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 const SCOUT_XP = 20;
 
@@ -173,7 +174,7 @@ export async function scoutZone(input: ScoutZoneInput): Promise<{ ok: boolean; e
     return { ok: true, unlockedBadges };
   } catch (e) {
     console.error("scoutZone error", e);
-    return { ok: false, error: e instanceof Error ? e.message : "Scout failed" };
+    return { ok: false, error: getUserFacingErrorMessage(e, "Scout failed. Please try again.") };
   }
 }
 
@@ -200,7 +201,7 @@ export async function updateLeadLocation(
     return { ok: true };
   } catch (e) {
     console.error("updateLeadLocation error", e);
-    return { ok: false, error: e instanceof Error ? e.message : "Update failed" };
+    return { ok: false, error: getUserFacingErrorMessage(e, "Update failed. Please try again.") };
   }
 }
 
@@ -291,7 +292,7 @@ export async function createLeadForTaskReport(
     console.error("createLeadForTaskReport error", e);
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Failed to add merchant",
+      error: getUserFacingErrorMessage(e, "Failed to add merchant. Please try again."),
     };
   }
 }

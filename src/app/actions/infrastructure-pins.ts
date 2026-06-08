@@ -69,6 +69,7 @@ export async function getInfrastructurePins(): Promise<InfrastructurePinsResult>
   await authorize(["ADMIN", "BRANCH_MANAGER", "PLAYER"], "getInfrastructurePins");
   return {
     branches: getBranchLocations(),
-    pos: getPosLocations(),
+    // POS machines hidden for now — re-enable with getPosLocations()
+    pos: [] as PosLocationPin[], // getPosLocations(),
   };
 }

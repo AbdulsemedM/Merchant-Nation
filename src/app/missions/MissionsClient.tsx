@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateMissionTaskStatus, getMissions } from "@/app/actions/mission";
 import { useState, useEffect } from "react";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 const TASK_STATUS_LABELS: Record<string, string> = {
   PENDING: "Pending",
@@ -131,7 +133,7 @@ export function MissionsClient({
       if (!res.ok) throw new Error(res.error);
       window.location.reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(getUserFacingErrorMessage(e, "Failed to update task."));
     } finally {
       setSubmitting(null);
     }
@@ -164,11 +166,7 @@ export function MissionsClient({
       </header>
 
       <div className="flex flex-1 flex-col gap-6 p-4">
-        {error && (
-          <p className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-            {error}
-          </p>
-        )}
+        <ErrorAlert message={error} />
 
         {pendingApprovals.length > 0 && canApprove && (
           <section>

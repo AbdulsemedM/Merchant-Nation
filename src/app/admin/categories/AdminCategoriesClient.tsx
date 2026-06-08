@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -247,7 +249,7 @@ function ScoutCategoryForm({
       }
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError(getUserFacingErrorMessage(e, "Something went wrong. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -256,9 +258,7 @@ function ScoutCategoryForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <ErrorAlert message={error} />
       )}
       <div className="grid gap-2">
         <Label htmlFor="cat-name">Name (unique, e.g. Cafe)</Label>

@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createBranch, getBranchesFromDb } from "@/app/actions/branches";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 const PAGE_SIZE = 20;
 
@@ -213,7 +215,7 @@ function CreateBranchForm({
       });
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create branch");
+      setError(getUserFacingErrorMessage(e, "Failed to create branch."));
     } finally {
       setSubmitting(false);
     }
@@ -229,7 +231,7 @@ function CreateBranchForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          <ErrorAlert message={error} />
           <div className="grid gap-2">
             <Label htmlFor="name">Name</Label>
             <Input

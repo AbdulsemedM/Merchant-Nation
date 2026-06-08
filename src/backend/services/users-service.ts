@@ -282,9 +282,9 @@ export async function createUser(data: CreateUserData) {
   const session = await authorize(["ADMIN", "BRANCH_MANAGER"] as Role[], "createUser");
 
   let resolvedBranchId: string | null = data.branchId ?? null;
-  if (session.role === "ADMIN" && data.role === "BRANCH_MANAGER") {
+  if (session.role === "ADMIN" && data.role !== "ADMIN") {
     if (data.branchId) resolvedBranchId = data.branchId;
-    else if (data.branchCode) {
+    else if (data.role === "BRANCH_MANAGER" && data.branchCode) {
       const branch = await prisma.branch.findUnique({
         where: { branchCode: data.branchCode },
         select: { id: true },
@@ -314,23 +314,34 @@ export async function createUser(data: CreateUserData) {
   if (!emailNorm) throw new Error("Email is required.");
   if (!data.password || data.password.length < 6) throw new Error("Password must be at least 6 characters.");
 
+  if (data.role === "PLAYER" && !resolvedBranchId && data.teamId) {
+    const team = await prisma.team.findUnique({
+      where: { id: data.teamId },
+      select: { branchId: true },
+    });
+    resolvedBranchId = team?.branchId ?? null;
+  }
+
   const passwordHash = await hashPassword(data.password);
-  const user = await prisma.user.create({
-    data: {
-      name: data.name,
-      email: emailNorm,
-      passwordHash,
-      mustChangePassword: true,
-      role: data.role,
-      teamId: data.role === "ADMIN" ? null : data.teamId ?? undefined,
-      branchId:
-        data.role === "ADMIN"
-          ? null
-          : data.role === "BRANCH_MANAGER"
-            ? resolvedBranchId ?? undefined
-            : undefined,
-    },
-  });
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: emailNorm,
+        passwordHash,
+        mustChangePassword: true,
+        role: data.role,
+        teamId: data.role === "ADMIN" ? null : data.teamId ?? undefined,
+        branchId: data.role === "ADMIN" ? null : resolvedBranchId ?? undefined,
+      },
+    });
+  } catch (e) {
+    if (e && typeof e === "object" && "code" in e && (e as { code?: string }).code === "P2002") {
+      throw new Error("A user with this email already exists.");
+    }
+    throw e;
+  }
 
   const actor = await prisma.user.findUnique({
     where: { id: session.id },

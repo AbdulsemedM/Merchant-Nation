@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Sparkles, Gift, X } from "lucide-react";
 import { handleRevealScratchCard } from "@/app/actions/gamification";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 type ScratchCardData = {
   id: string;
@@ -37,7 +39,7 @@ export function ScratchCard({ card, onReveal }: ScratchCardComponentProps) {
         setError(result.error || "Failed to reveal card");
       }
     } catch (err) {
-      setError("Error revealing card");
+      setError(getUserFacingErrorMessage(err, "Error revealing card. Please try again."));
     } finally {
       setIsRevealing(false);
     }
@@ -131,11 +133,9 @@ export function ScratchCard({ card, onReveal }: ScratchCardComponentProps) {
           </p>
         </div>
 
-        {error && (
-          <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-2 rounded mb-4">
-            {error}
-          </div>
-        )}
+        <div className="mb-4">
+          <ErrorAlert message={error} />
+        </div>
 
         <button
           onClick={handleReveal}

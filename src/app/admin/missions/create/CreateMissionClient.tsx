@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { createMission } from "@/app/actions/mission";
 import { getBranchesForAdmin } from "@/app/actions/users";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 export function CreateMissionClient({
   callerRole,
@@ -61,7 +63,7 @@ export function CreateMissionClient({
       router.push(branchId ? `/missions?branchId=${encodeURIComponent(branchId)}` : "/missions");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create mission");
+      setError(getUserFacingErrorMessage(e, "Failed to create mission."));
     } finally {
       setSubmitting(false);
     }
@@ -78,7 +80,7 @@ export function CreateMissionClient({
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error && (
-            <p className="text-destructive text-sm">{error}</p>
+            <ErrorAlert message={error} />
           )}
           <div className="grid gap-2">
             <Label htmlFor="name">Name</Label>

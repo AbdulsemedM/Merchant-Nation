@@ -9,8 +9,14 @@ import {
   Marker,
   useGoogleMap,
 } from "@react-google-maps/api";
-import { MapPin } from "lucide-react";
 import { generateZoneGrid, ADDIS_ABABA_CENTER, ETHIOPIA_CENTER, ETHIOPIA_DEFAULT_ZOOM, type GridCell } from "@/lib/zoneGrid";
+import {
+  dispatchMapCenterOn,
+  requestUserLocation,
+  setStoredUserLocation,
+} from "@/lib/user-location";
+import { useStoredUserLocation } from "@/hooks/useStoredUserLocation";
+import { MyLocationButton } from "@/components/map/MyLocationButton";
 import { normalizeTerritoryPoints } from "@/lib/territoryGrid";
 import { getZones, updateZoneStatus, type ZoneWithStats } from "@/app/actions/zones";
 import { ZONE_STATUS_COLORS, ZONE_STATUS_LABELS, type MapZoneStatus } from "@/lib/zoneStatusColors";
@@ -33,6 +39,7 @@ import { getMapPins, type MapPinScouted, type MapPinInducted } from "@/app/actio
 import { getMerchantDetail, type MerchantDetail } from "@/app/actions/merchants";
 import { MapPinDetailDrawer, type SelectedMapPin } from "./MapPinDetailDrawer";
 import { getInfrastructurePins } from "@/app/actions/infrastructure-pins";
+import { createGoogleBranchIcon } from "@/components/map/branch-map-icon";
 
 const PIN_CLUSTER_RADIUS_DEG = 0.00008;
 
@@ -73,19 +80,6 @@ const DEFAULT_MAP_OPTIONS: google.maps.MapOptions = {
   rotateControl: true,
   fullscreenControl: true,
 };
-
-function MyLocationButton({ onCenter }: { onCenter: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onCenter}
-      className="absolute bottom-24 right-4 z-10 flex size-12 items-center justify-center rounded-full border border-border bg-card shadow-lg transition hover:bg-muted"
-      aria-label="Center on my location"
-    >
-      <MapPin className="size-6 text-primary" />
-    </button>
-  );
-}
 
 function AdminTerritoryContentGoogle({
   adminTerritories,
@@ -265,6 +259,7 @@ export function GoogleMapViewClient({
   const [view, setView] = useState<"details" | "scout-form">("details");
   const [loading, setLoading] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const userLocation = useStoredUserLocation();
   const [mapType, setMapType] = useState<"roadmap" | "satellite">("roadmap");
   const [boundaryPoints, setBoundaryPoints] = useState<{ lat: number; lng: number }[]>([]);
   const [isEditingBoundary, setIsEditingBoundary] = useState(false);
@@ -281,7 +276,7 @@ export function GoogleMapViewClient({
   const [infrastructureLayers, setInfrastructureLayers] =
     useState<InfrastructureLayerVisibility>(() => ({
       branches: adminTerritories.length === 0,
-      pos: true,
+      pos: false, // POS layer disabled for now
     }));
   const [selectedPin, setSelectedPin] = useState<SelectedMapPin | null>(null);
   const [merchantDetailForPin, setMerchantDetailForPin] = useState<MerchantDetail | null>(null);
@@ -372,6 +367,9 @@ export function GoogleMapViewClient({
   const hasAdminTerritories = adminTerritoryPoints.length >= 2;
 
   const mapCenter = useMemo(() => {
+    if (userLocation) {
+      return { lat: userLocation.lat, lng: userLocation.lng };
+    }
     if (branchTerritory && branchTerritory.length > 0) {
       const sum = branchTerritory.reduce(
         (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
@@ -394,16 +392,23 @@ export function GoogleMapViewClient({
     }
     if (hasInfrastructure) return ETHIOPIA_CENTER;
     return ADDIS_ABABA_CENTER;
-  }, [branchTerritory, hasAdminTerritories, adminTerritoryPoints, hasInfrastructure]);
+  }, [userLocation, branchTerritory, hasAdminTerritories, adminTerritoryPoints, hasInfrastructure]);
 
-  const defaultZoom =
-    branchTerritory && branchTerritory.length > 0
+  const defaultZoom = userLocation
+    ? 16
+    : branchTerritory && branchTerritory.length > 0
       ? 14
       : hasAdminTerritories
         ? 11
         : hasInfrastructure
           ? ETHIOPIA_DEFAULT_ZOOM
           : 14;
+
+  useEffect(() => {
+    if (userLocation) {
+      dispatchMapCenterOn(userLocation);
+    }
+  }, [userLocation]);
 
   const handleMapClick = useCallback(
     (e: google.maps.MapMouseEvent) => {
@@ -526,22 +531,19 @@ export function GoogleMapViewClient({
     [selected?.zone?.id, refetchZones]
   );
 
-  const centerOnUser = useCallback(() => {
+  const centerOnUser = useCallback(async () => {
     setLocationError(null);
     if (!navigator?.geolocation) {
       setLocationError("Geolocation not supported");
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const center = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        window.dispatchEvent(
-          new CustomEvent("map-center-on", { detail: center })
-        );
-      },
-      () => setLocationError("Location unavailable"),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-    );
+    const center = await requestUserLocation();
+    if (center) {
+      setStoredUserLocation(center);
+      dispatchMapCenterOn(center);
+    } else {
+      setLocationError("Location unavailable");
+    }
   }, []);
 
   const statusLabel = selected?.zone ? selected.zone.status : "UNSEEN";
@@ -675,13 +677,14 @@ export function GoogleMapViewClient({
               onBoundaryPathChange={inEditBoundaryMode ? setBoundaryPoints : undefined}
             />
           )}
-          {adminTerritories.length === 0 && branchTerritory && branchTerritory.length >= 2 && (
+          {!userLocation && adminTerritories.length === 0 && branchTerritory && branchTerritory.length >= 2 && (
             <FitMapToTerritoryGoogle points={branchTerritory} />
           )}
-          {hasAdminTerritories && (
+          {!userLocation && hasAdminTerritories && (
             <FitMapToAdminTerritoriesGoogle points={adminTerritoryPoints} />
           )}
-          {adminTerritories.length === 0 &&
+          {!userLocation &&
+            adminTerritories.length === 0 &&
             !branchTerritory &&
             hasInfrastructure &&
             infrastructureLayers.branches && (
@@ -700,19 +703,13 @@ export function GoogleMapViewClient({
                     setSelectedTerritoryCell(null);
                     setSelectedPin({ type: "branch", data: branch });
                   }}
-                  icon={{
-                    path: google.maps.SymbolPath.CIRCLE,
-                    fillColor: "#f59e0b",
-                    fillOpacity: 1,
-                    strokeColor: "#fff",
-                    strokeWeight: 2,
-                    scale: 12,
-                  }}
+                  icon={createGoogleBranchIcon(google.maps)}
                   title={branch.name}
                 />
               ))}
             </>
           )}
+          {/* POS machines hidden for now
           {infrastructurePins && infrastructureLayers.pos && (
             <>
               {infrastructurePins.pos.map((pos) => (
@@ -737,6 +734,7 @@ export function GoogleMapViewClient({
               ))}
             </>
           )}
+          */}
           {mapPins && (
             <>
               {spreadScouted.map(({ pin: lead, lat, lng }) => (

@@ -11,6 +11,8 @@ import {
   createMissionTask,
 } from "@/app/actions/mission";
 import { getUsersForAdmin } from "@/app/actions/users";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 type Mission = {
   id: string;
@@ -145,7 +147,7 @@ function AddGoalForm({
       });
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(getUserFacingErrorMessage(e, "Failed. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -159,7 +161,7 @@ function AddGoalForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          <ErrorAlert message={error} />
           <div className="grid gap-2">
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} required className="font-mono" />
@@ -213,7 +215,7 @@ function AddTaskForm({
       });
       onSuccess();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(getUserFacingErrorMessage(e, "Failed. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -227,7 +229,7 @@ function AddTaskForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          <ErrorAlert message={error} />
           <div className="grid gap-2">
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} required className="font-mono" />

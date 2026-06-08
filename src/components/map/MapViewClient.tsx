@@ -7,6 +7,13 @@ import L from "leaflet";
 import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
 import { generateZoneGrid, ADDIS_ABABA_CENTER, ETHIOPIA_CENTER, ETHIOPIA_DEFAULT_ZOOM, type GridCell } from "@/lib/zoneGrid";
+import {
+  dispatchMapCenterOn,
+  requestUserLocation,
+  setStoredUserLocation,
+} from "@/lib/user-location";
+import { useStoredUserLocation } from "@/hooks/useStoredUserLocation";
+import { MyLocationButton } from "@/components/map/MyLocationButton";
 import { normalizeTerritoryPoints } from "@/lib/territoryGrid";
 import { getZones, updateZoneStatus, type ZoneWithStats } from "@/app/actions/zones";
 import { ZONE_STATUS_COLORS, ZONE_STATUS_LABELS, type MapZoneStatus } from "@/lib/zoneStatusColors";
@@ -29,6 +36,7 @@ import { getMapPins, type MapPinScouted, type MapPinInducted } from "@/app/actio
 import { getMerchantDetail, type MerchantDetail } from "@/app/actions/merchants";
 import { MapPinDetailDrawer, type SelectedMapPin } from "./MapPinDetailDrawer";
 import { getInfrastructurePins } from "@/app/actions/infrastructure-pins";
+import { createLeafletBranchIcon } from "@/components/map/branch-map-icon";
 
 const PIN_CLUSTER_RADIUS_DEG = 0.00008;
 
@@ -108,6 +116,19 @@ function MapSizeFix() {
     if (!map) return;
     const t = setTimeout(() => map.invalidateSize(), 100);
     return () => clearTimeout(t);
+  }, [map]);
+  return null;
+}
+
+function MapCenterHandler() {
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+    const handler = (e: CustomEvent<{ lat: number; lng: number }>) => {
+      map.flyTo([e.detail.lat, e.detail.lng], 16, { duration: 0.8 });
+    };
+    window.addEventListener("map-center-on", handler as EventListener);
+    return () => window.removeEventListener("map-center-on", handler as EventListener);
   }, [map]);
   return null;
 }
@@ -329,6 +350,8 @@ export function MapViewClient({
   const [tapPosition, setTapPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [view, setView] = useState<"details" | "scout-form">("details");
   const [loading, setLoading] = useState(true);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const userLocation = useStoredUserLocation();
   const [boundaryPoints, setBoundaryPoints] = useState<{ lat: number; lng: number }[]>([]);
   const [isEditingBoundary, setIsEditingBoundary] = useState(false);
   const [savingTerritory, setSavingTerritory] = useState(false);
@@ -344,7 +367,7 @@ export function MapViewClient({
   const [infrastructureLayers, setInfrastructureLayers] =
     useState<InfrastructureLayerVisibility>(() => ({
       branches: adminTerritories.length === 0,
-      pos: true,
+      pos: false, // POS layer disabled for now
     }));
   const [selectedPin, setSelectedPin] = useState<SelectedMapPin | null>(null);
   const [merchantDetailForPin, setMerchantDetailForPin] = useState<MerchantDetail | null>(null);
@@ -454,6 +477,9 @@ export function MapViewClient({
   const hasAdminTerritories = adminTerritoryPoints.length >= 2;
 
   const mapCenter = useMemo(() => {
+    if (userLocation) {
+      return [userLocation.lat, userLocation.lng] as [number, number];
+    }
     if (branchTerritory && branchTerritory.length > 0) {
       const sum = branchTerritory.reduce(
         (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
@@ -470,16 +496,38 @@ export function MapViewClient({
     }
     if (hasInfrastructure) return [ETHIOPIA_CENTER.lat, ETHIOPIA_CENTER.lng] as [number, number];
     return [ADDIS_ABABA_CENTER.lat, ADDIS_ABABA_CENTER.lng] as [number, number];
-  }, [branchTerritory, hasAdminTerritories, adminTerritoryPoints, hasInfrastructure]);
+  }, [userLocation, branchTerritory, hasAdminTerritories, adminTerritoryPoints, hasInfrastructure]);
 
-  const defaultZoom =
-    branchTerritory && branchTerritory.length > 0
+  const defaultZoom = userLocation
+    ? 16
+    : branchTerritory && branchTerritory.length > 0
       ? 14
       : hasAdminTerritories
         ? 11
         : hasInfrastructure
           ? ETHIOPIA_DEFAULT_ZOOM
           : 14;
+
+  useEffect(() => {
+    if (userLocation) {
+      dispatchMapCenterOn(userLocation);
+    }
+  }, [userLocation]);
+
+  const centerOnUser = useCallback(async () => {
+    setLocationError(null);
+    if (!navigator?.geolocation) {
+      setLocationError("Geolocation not supported");
+      return;
+    }
+    const center = await requestUserLocation();
+    if (center) {
+      setStoredUserLocation(center);
+      dispatchMapCenterOn(center);
+    } else {
+      setLocationError("Location unavailable");
+    }
+  }, []);
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
     if (inDefineMode) {
@@ -661,13 +709,15 @@ export function MapViewClient({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <MapSizeFix />
-          {adminTerritories.length === 0 && branchTerritory && branchTerritory.length >= 2 && (
+          <MapCenterHandler />
+          {!userLocation && adminTerritories.length === 0 && branchTerritory && branchTerritory.length >= 2 && (
             <FitMapToTerritory points={branchTerritory} />
           )}
-          {hasAdminTerritories && (
+          {!userLocation && hasAdminTerritories && (
             <FitMapToAdminTerritories points={adminTerritoryPoints} />
           )}
-          {adminTerritories.length === 0 &&
+          {!userLocation &&
+            adminTerritories.length === 0 &&
             !branchTerritory &&
             hasInfrastructure &&
             infrastructureLayers.branches && (
@@ -712,17 +762,13 @@ export function MapViewClient({
                       setSelectedPin({ type: "branch", data: branch });
                     },
                   }}
-                  icon={L.divIcon({
-                    className: "pin-icon-branch",
-                    html: `<div style="width:18px;height:18px;border-radius:50%;background:#f59e0b;border:2px solid white;cursor:pointer"></div>`,
-                    iconSize: [22, 22],
-                    iconAnchor: [11, 11],
-                  })}
+                  icon={createLeafletBranchIcon(L)}
                   title={branch.name}
                 />
               ))}
             </>
           )}
+          {/* POS machines hidden for now
           {infrastructurePins && infrastructureLayers.pos && (
             <>
               {infrastructurePins.pos.map((pos) => (
@@ -747,6 +793,7 @@ export function MapViewClient({
               ))}
             </>
           )}
+          */}
           {mapPins && (
             <>
               {spreadScouted.map(({ pin: lead, lat, lng }) => (
@@ -807,6 +854,12 @@ export function MapViewClient({
           infrastructureLayers={infrastructureLayers}
           onInfrastructureLayersChange={setInfrastructureLayers}
         />
+        <MyLocationButton onCenter={centerOnUser} />
+        {locationError && (
+          <div className="absolute bottom-24 left-4 right-20 z-10 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 font-mono text-xs text-destructive">
+            {locationError}
+          </div>
+        )}
       </div>
 
       <Drawer

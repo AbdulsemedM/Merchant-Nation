@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/select";
 import { updateMissionTaskStatus } from "@/app/actions/mission";
 import { createLeadForTaskReport } from "@/app/actions/leads";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 const TASK_STATUS_LABELS: Record<string, string> = {
   PENDING: "Pending",
@@ -83,7 +85,7 @@ export function TaskDetailClient({
       if (!res.ok) throw new Error(res.error);
       setTask((t) => ({ ...t, status: "IN_PROGRESS" }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(getUserFacingErrorMessage(e, "Failed. Please try again."));
     } finally {
       setSubmitting(null);
     }
@@ -99,7 +101,7 @@ export function TaskDetailClient({
       if (!res.ok) throw new Error(res.error);
       setTask((t) => ({ ...t, status: "SUBMITTED", completionNotes: completionNotes.trim() || null }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(getUserFacingErrorMessage(e, "Failed. Please try again."));
     } finally {
       setSubmitting(null);
     }
@@ -116,7 +118,7 @@ export function TaskDetailClient({
       if (!res.ok) throw new Error(res.error);
       setTask((t) => ({ ...t, status: approved ? "APPROVED" : "REJECTED" }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(getUserFacingErrorMessage(e, "Failed. Please try again."));
     } finally {
       setSubmitting(null);
     }
@@ -144,7 +146,7 @@ export function TaskDetailClient({
 
       <div className="flex flex-1 flex-col gap-6 p-4">
         {error && (
-          <p className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">{error}</p>
+          <ErrorAlert message={error} />
         )}
 
         <Card>
@@ -382,7 +384,7 @@ function AddMerchantForm({
       if (res.ok) onSuccess();
       else setError(res.error ?? "Failed");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      setError(getUserFacingErrorMessage(e, "Failed. Please try again."));
     } finally {
       setSubmitting(false);
     }
@@ -399,7 +401,7 @@ function AddMerchantForm({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            <ErrorAlert message={error} />
             {geoError && (
               <p className="text-xs text-muted-foreground">{geoError}. Enter coordinates below.</p>
             )}
