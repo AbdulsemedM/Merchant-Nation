@@ -5,6 +5,8 @@ export type LocationPromptChoice = "granted" | "skipped";
 const LOCATION_KEY = "mn_user_location";
 const CHOICE_KEY = "mn_location_prompt_choice";
 
+export const USER_LOCATION_UPDATED_EVENT = "user-location-updated";
+
 function canUseSessionStorage(): boolean {
   return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
 }
@@ -27,6 +29,9 @@ export function getStoredUserLocation(): UserLocation | null {
 export function setStoredUserLocation(location: UserLocation): void {
   if (!canUseSessionStorage()) return;
   sessionStorage.setItem(LOCATION_KEY, JSON.stringify(location));
+  window.dispatchEvent(
+    new CustomEvent(USER_LOCATION_UPDATED_EVENT, { detail: location })
+  );
 }
 
 export function clearStoredUserLocation(): void {
@@ -46,7 +51,10 @@ export function setLocationPromptChoice(choice: LocationPromptChoice): void {
   sessionStorage.setItem(CHOICE_KEY, choice);
 }
 
-export function requestUserLocation(): Promise<UserLocation | null> {
+export function requestUserLocation(options?: {
+  /** Pass 0 when the user taps "my location" for a fresh GPS fix. */
+  maximumAge?: number;
+}): Promise<UserLocation | null> {
   return new Promise((resolve) => {
     if (!navigator?.geolocation) {
       resolve(null);
@@ -57,7 +65,11 @@ export function requestUserLocation(): Promise<UserLocation | null> {
         resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
       () => resolve(null),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: options?.maximumAge ?? 60000,
+      }
     );
   });
 }

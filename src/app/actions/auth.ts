@@ -56,7 +56,7 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string,
   options?: { redirect?: boolean; redirectTo?: string }
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; redirectTo?: string }> {
   try {
     const { getServerAuthSession } = await import("@/lib/auth");
     const session = await getServerAuthSession();
@@ -79,8 +79,9 @@ export async function changePassword(
       maxAge: IDLE_TIMEOUT_SECONDS,
     });
 
+    const redirectTo = options?.redirectTo ?? homePathForRole(session.role);
     if (options?.redirect || options?.redirectTo) {
-      redirect(options.redirectTo ?? homePathForRole(session.role));
+      return { ok: true, redirectTo };
     }
 
     return { ok: true };

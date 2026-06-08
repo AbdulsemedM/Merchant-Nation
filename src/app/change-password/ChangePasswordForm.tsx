@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { changePassword } from "@/app/actions/auth";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { getUserFacingErrorMessage, isRedirectError } from "@/lib/errors";
+import { getUserFacingErrorMessage } from "@/lib/errors";
 
 export function ChangePasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -29,11 +29,14 @@ export function ChangePasswordForm() {
     setSubmitting(true);
     try {
       const res = await changePassword(currentPassword, newPassword, { redirect: true });
+      if (res.ok && res.redirectTo) {
+        window.location.assign(res.redirectTo);
+        return;
+      }
       if (!res.ok) {
         setError(res.error ?? "Failed to change password.");
       }
     } catch (e) {
-      if (isRedirectError(e)) return;
       setError(getUserFacingErrorMessage(e, "Failed to change password. Please try again."));
     } finally {
       setSubmitting(false);

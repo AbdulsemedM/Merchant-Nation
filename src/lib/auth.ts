@@ -83,7 +83,7 @@ export async function verifyToken(token: string): Promise<AuthSession | null> {
       id: sub,
       role,
       branchId: (payload.branchId as string | null) ?? null,
-      mustChangePassword: (payload.mustChangePassword as boolean) ?? false,
+      mustChangePassword: payload.mustChangePassword === true,
     };
   } catch {
     return null;

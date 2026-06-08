@@ -22,6 +22,32 @@ const CORS_HEADERS = [
   { key: "Access-Control-Allow-Credentials", value: "true" },
 ] as const;
 
+function isServerActionRequest(request: NextRequest): boolean {
+  return request.headers.has("next-action") || request.headers.has("Next-Action");
+}
+
+async function attachRefreshedSessionCookie(
+  request: NextRequest,
+  response: NextResponse,
+  session: Parameters<typeof createTokenForEdge>[0]
+): Promise<NextResponse> {
+  // Server Actions set their own session cookie (e.g. after password change).
+  if (isServerActionRequest(request)) return response;
+  try {
+    const newToken = await createTokenForEdge(session);
+    response.cookies.set(AUTH_COOKIE_NAME, newToken, {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: secureCookie,
+      maxAge: IDLE_MAX_AGE_SECONDS,
+    });
+  } catch {
+    // ignore
+  }
+  return response;
+}
+
 function getCorsOrigin(req: NextRequest): string | null {
   const origin = req.headers.get("origin");
   if (!origin) return null;
@@ -80,20 +106,9 @@ export async function proxy(request: NextRequest) {
       res.cookies.set(AUTH_COOKIE_NAME, "", { path: "/", maxAge: 0 });
       return addCors(res, origin);
     }
-    const res = NextResponse.next();
-    try {
-      const newToken = await createTokenForEdge(session);
-      res.cookies.set(AUTH_COOKIE_NAME, newToken, {
-        httpOnly: true,
-        path: "/",
-        sameSite: "lax",
-        secure: secureCookie,
-        maxAge: IDLE_MAX_AGE_SECONDS,
-      });
-    } catch {
-      // ignore
-    }
-    return addCors(res, origin);
+    // Do not refresh the session cookie here — it would overwrite the new token
+    // issued by the change-password Server Action (mustChangePassword stays true).
+    return addCors(NextResponse.next(), origin);
   }
 
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
@@ -108,34 +123,18 @@ export async function proxy(request: NextRequest) {
     return addCors(res, origin);
   }
   if (session.mustChangePassword) {
-    const res = NextResponse.redirect(new URL("/change-password", request.url));
-    try {
-      const newToken = await createTokenForEdge(session);
-      res.cookies.set(AUTH_COOKIE_NAME, newToken, {
-        httpOnly: true,
-        path: "/",
-        sameSite: "lax",
-        secure: secureCookie,
-        maxAge: IDLE_MAX_AGE_SECONDS,
-      });
-    } catch {
-      // ignore
-    }
+    const res = await attachRefreshedSessionCookie(
+      request,
+      NextResponse.redirect(new URL("/change-password", request.url)),
+      session
+    );
     return addCors(res, origin);
   }
-  const res = NextResponse.next();
-  try {
-    const newToken = await createTokenForEdge(session);
-    res.cookies.set(AUTH_COOKIE_NAME, newToken, {
-      httpOnly: true,
-      path: "/",
-      sameSite: "lax",
-      secure: secureCookie,
-      maxAge: IDLE_MAX_AGE_SECONDS,
-    });
-  } catch {
-    // If token creation fails, continue without refreshing (session still valid for this request)
-  }
+  const res = await attachRefreshedSessionCookie(
+    request,
+    NextResponse.next(),
+    session
+  );
   return addCors(res, origin);
 }
 

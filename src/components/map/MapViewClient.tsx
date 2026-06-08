@@ -37,6 +37,7 @@ import { getMerchantDetail, type MerchantDetail } from "@/app/actions/merchants"
 import { MapPinDetailDrawer, type SelectedMapPin } from "./MapPinDetailDrawer";
 import { getInfrastructurePins } from "@/app/actions/infrastructure-pins";
 import { createLeafletBranchIcon } from "@/components/map/branch-map-icon";
+import { createLeafletUserLocationIcon } from "@/components/map/user-map-icon";
 
 const PIN_CLUSTER_RADIUS_DEG = 0.00008;
 
@@ -520,7 +521,7 @@ export function MapViewClient({
       setLocationError("Geolocation not supported");
       return;
     }
-    const center = await requestUserLocation();
+    const center = await requestUserLocation({ maximumAge: 0 });
     if (center) {
       setStoredUserLocation(center);
       dispatchMapCenterOn(center);
@@ -794,6 +795,14 @@ export function MapViewClient({
             </>
           )}
           */}
+          {userLocation && (
+            <Marker
+              position={[userLocation.lat, userLocation.lng]}
+              icon={createLeafletUserLocationIcon(L)}
+              title="Your location"
+              zIndexOffset={1000}
+            />
+          )}
           {mapPins && (
             <>
               {spreadScouted.map(({ pin: lead, lat, lng }) => (

@@ -36,7 +36,7 @@ export async function verifyTokenForEdge(token: string): Promise<JWTPayload | nu
       id: sub,
       role,
       branchId: (payload.branchId as string | null) ?? null,
-      mustChangePassword: (payload.mustChangePassword as boolean) ?? false,
+      mustChangePassword: payload.mustChangePassword === true,
     };
   } catch {
     return null;
