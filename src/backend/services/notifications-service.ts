@@ -1,5 +1,6 @@
 import { authorize } from "@/lib/auth";
 import * as notificationsRepo from "@/backend/repositories/notifications-repository";
+import { routeNotification } from "@/backend/services/notification-router-service";
 import { prisma } from "@/lib/prisma";
 
 export type NotificationRow = notificationsRepo.NotificationRow;
@@ -76,12 +77,16 @@ export async function createTaskAssignedNotification(
   taskTitle: string,
   branchId?: string | null,
 ): Promise<void> {
-  await notificationsRepo.createTaskAssignedNotification({
-    taskId,
-    assigneeId,
-    missionName,
-    taskTitle,
-    branchId,
+  await routeNotification({
+    userId: assigneeId,
+    type: "TASK_ASSIGNED",
+    title: "New task assigned",
+    message: `${missionName}: ${taskTitle}`,
+    priority: "HIGH",
+    actionUrl: `/missions/task/${taskId}`,
+    branchId: branchId ?? undefined,
+    missionTaskId: taskId,
+    metadata: { showPopup: true, missionName, taskTitle },
   });
 }
 
