@@ -7,14 +7,10 @@ import {
   IDLE_TIMEOUT_SECONDS,
   isAuthSecretConfigured,
   type AuthSession,
-  type Role,
 } from "@/lib/auth";
 import { changePassword as changePasswordService, loginWithPassword } from "@/backend/services/auth-service";
 import { getUserFacingErrorMessage, isRedirectError } from "@/lib/errors";
-
-function homePathForRole(role: Role): string {
-  return role === "PLAYER" ? "/" : "/admin/users";
-}
+import { homePathForRole } from "@/lib/home-path";
 
 export async function login(email: string, password: string) {
   if (!isAuthSecretConfigured()) {
@@ -37,7 +33,7 @@ export async function login(email: string, password: string) {
       secure: secureCookie,
       maxAge: IDLE_TIMEOUT_SECONDS,
     });
-    const redirectTo = result.mustChangePassword ? "/change-password" : homePathForRole(result.role);
+    const redirectTo = result.mustChangePassword ? "/change-password" : homePathForRole();
     return { ok: true as const, redirectTo };
   } catch (e) {
     console.error("[login] server action error:", e);
@@ -79,7 +75,7 @@ export async function changePassword(
       maxAge: IDLE_TIMEOUT_SECONDS,
     });
 
-    const redirectTo = options?.redirectTo ?? homePathForRole(session.role);
+    const redirectTo = options?.redirectTo ?? homePathForRole();
     if (options?.redirect || options?.redirectTo) {
       return { ok: true, redirectTo };
     }

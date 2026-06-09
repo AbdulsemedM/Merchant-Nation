@@ -6,6 +6,7 @@ import { getTerritoryDashboardStats } from "@/app/actions/mission";
 import { getBranchTerritoryForMember, getTerritoryCellsForMember, getAllBranchTerritoriesForAdmin } from "@/app/actions/branch-territory";
 import { xpProgress, xpToNextRank, nextRankLabel } from "@/lib/rank";
 import { TerritoryDashboard } from "@/components/territory/TerritoryDashboard";
+import { isGoogleMapsConfigured } from "@/lib/google-maps";
 
 export const dynamic = "force-dynamic";
 
@@ -73,7 +74,7 @@ export default async function HomePage() {
 
   const xpProgressData = xpProgress(ranks, user.xp);
 
-  const useGoogleMaps = Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+  const useGoogleMaps = isGoogleMapsConfigured();
 
   const leaderboardEntries = leaderboardData.entries.map((u) => ({
     id: u.id,

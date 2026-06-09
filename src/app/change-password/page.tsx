@@ -1,17 +1,14 @@
 import { getServerAuthSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { ChangePasswordForm } from "./ChangePasswordForm";
+import { homePathForRole } from "@/lib/home-path";
 
 export const dynamic = "force-dynamic";
-
-function homePathForRole(role: string): string {
-  return role === "PLAYER" ? "/" : "/admin/users";
-}
 
 export default async function ChangePasswordPage() {
   const session = await getServerAuthSession();
   if (!session) redirect("/login");
-  if (!session.mustChangePassword) redirect(homePathForRole(session.role));
+  if (!session.mustChangePassword) redirect(homePathForRole());
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-md flex flex-col gap-6">

@@ -102,10 +102,7 @@ export async function proxy(request: NextRequest) {
     if (session.mustChangePassword) {
       return addCors(NextResponse.redirect(new URL("/change-password", request.url)), origin);
     }
-    const res = session.role === "PLAYER"
-      ? NextResponse.redirect(new URL("/", request.url))
-      : NextResponse.redirect(new URL("/admin/users", request.url));
-    return addCors(res, origin);
+    return addCors(NextResponse.redirect(new URL("/", request.url)), origin);
   }
 
   if (pathname === "/change-password") {

@@ -27,7 +27,11 @@ import { ScoutReportForm } from "@/components/forms/scout-report-form";
 import { ZoneDrawer, type ZoneStatus } from "@/components/zone-drawer";
 import { TerritoryCellDrawer } from "./TerritoryCellDrawer";
 import { PlayerCellDrawer } from "./PlayerCellDrawer";
-import { MapOverlay, type InfrastructureLayerVisibility } from "./MapOverlay";
+import {
+  MapOverlay,
+  DEFAULT_INFRASTRUCTURE_LAYERS,
+  type InfrastructureLayerVisibility,
+} from "./MapOverlay";
 import { useUserRole } from "@/contexts/UserRoleContext";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
 import type { SelectedZone } from "./types";
@@ -366,10 +370,7 @@ export function MapViewClient({
     Awaited<ReturnType<typeof getInfrastructurePins>> | null
   >(null);
   const [infrastructureLayers, setInfrastructureLayers] =
-    useState<InfrastructureLayerVisibility>(() => ({
-      branches: adminTerritories.length === 0,
-      pos: false, // POS layer disabled for now
-    }));
+    useState<InfrastructureLayerVisibility>(DEFAULT_INFRASTRUCTURE_LAYERS);
   const [selectedPin, setSelectedPin] = useState<SelectedMapPin | null>(null);
   const [merchantDetailForPin, setMerchantDetailForPin] = useState<MerchantDetail | null>(null);
   const [pinDetailLoading, setPinDetailLoading] = useState(false);
@@ -476,6 +477,11 @@ export function MapViewClient({
     [adminTerritories]
   );
   const hasAdminTerritories = adminTerritoryPoints.length >= 2;
+  const showNationwideBranches =
+    hasInfrastructure &&
+    infrastructureLayers.branches &&
+    !userLocation &&
+    !branchTerritory;
 
   const mapCenter = useMemo(() => {
     if (userLocation) {
@@ -488,6 +494,9 @@ export function MapViewClient({
       );
       return [sum.lat / branchTerritory.length, sum.lng / branchTerritory.length] as [number, number];
     }
+    if (showNationwideBranches) {
+      return [ETHIOPIA_CENTER.lat, ETHIOPIA_CENTER.lng] as [number, number];
+    }
     if (hasAdminTerritories) {
       const sum = adminTerritoryPoints.reduce(
         (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
@@ -497,17 +506,26 @@ export function MapViewClient({
     }
     if (hasInfrastructure) return [ETHIOPIA_CENTER.lat, ETHIOPIA_CENTER.lng] as [number, number];
     return [ADDIS_ABABA_CENTER.lat, ADDIS_ABABA_CENTER.lng] as [number, number];
-  }, [userLocation, branchTerritory, hasAdminTerritories, adminTerritoryPoints, hasInfrastructure]);
+  }, [
+    userLocation,
+    branchTerritory,
+    showNationwideBranches,
+    hasAdminTerritories,
+    adminTerritoryPoints,
+    hasInfrastructure,
+  ]);
 
   const defaultZoom = userLocation
     ? 16
     : branchTerritory && branchTerritory.length > 0
       ? 14
-      : hasAdminTerritories
-        ? 11
-        : hasInfrastructure
-          ? ETHIOPIA_DEFAULT_ZOOM
-          : 14;
+      : showNationwideBranches
+        ? ETHIOPIA_DEFAULT_ZOOM
+        : hasAdminTerritories
+          ? 11
+          : hasInfrastructure
+            ? ETHIOPIA_DEFAULT_ZOOM
+            : 14;
 
   useEffect(() => {
     if (userLocation) {
@@ -714,14 +732,10 @@ export function MapViewClient({
           {!userLocation && adminTerritories.length === 0 && branchTerritory && branchTerritory.length >= 2 && (
             <FitMapToTerritory points={branchTerritory} />
           )}
-          {!userLocation && hasAdminTerritories && (
+          {!userLocation && hasAdminTerritories && !showNationwideBranches && (
             <FitMapToAdminTerritories points={adminTerritoryPoints} />
           )}
-          {!userLocation &&
-            adminTerritories.length === 0 &&
-            !branchTerritory &&
-            hasInfrastructure &&
-            infrastructureLayers.branches && (
+          {!userLocation && showNationwideBranches && (
             <FitMapToPoints
               points={infrastructurePins!.branches.map((b) => ({ lat: b.lat, lng: b.lng }))}
             />

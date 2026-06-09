@@ -6,6 +6,7 @@ import type { TerritoryCellWithCoords, AdminBranchTerritory } from "@/app/action
 import type { MapZoneStatus } from "@/lib/zoneStatusColors";
 
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
+import { isGoogleMapsConfigured } from "@/lib/google-maps";
 
 const LeafletMapView = dynamic(
   () => import("./MapViewClient").then((m) => ({ default: m.MapViewClient })),
@@ -27,7 +28,7 @@ function MapLoading() {
 
 /** Renders Google Map when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is set, else Leaflet (OSM). */
 export function MapScreen({
-  useGoogleMaps = false,
+  useGoogleMaps = isGoogleMapsConfigured(),
   zoneCount = 0,
   merchantCount = 0,
   branchId = null,

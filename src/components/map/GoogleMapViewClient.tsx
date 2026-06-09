@@ -10,6 +10,7 @@ import {
   useGoogleMap,
 } from "@react-google-maps/api";
 import { generateZoneGrid, ADDIS_ABABA_CENTER, ETHIOPIA_CENTER, ETHIOPIA_DEFAULT_ZOOM, type GridCell } from "@/lib/zoneGrid";
+import { getGoogleMapsApiKey } from "@/lib/google-maps";
 import {
   dispatchMapCenterOn,
   requestUserLocation,
@@ -30,7 +31,11 @@ import { ScoutReportForm } from "@/components/forms/scout-report-form";
 import { ZoneDrawer, type ZoneStatus } from "@/components/zone-drawer";
 import { TerritoryCellDrawer } from "./TerritoryCellDrawer";
 import { PlayerCellDrawer } from "./PlayerCellDrawer";
-import { MapOverlay, type InfrastructureLayerVisibility } from "./MapOverlay";
+import {
+  MapOverlay,
+  DEFAULT_INFRASTRUCTURE_LAYERS,
+  type InfrastructureLayerVisibility,
+} from "./MapOverlay";
 import { useUserRole } from "@/contexts/UserRoleContext";
 import type { SelectedZone } from "./types";
 import type { TerritoryCellWithCoords, AdminBranchTerritory, TerritoryCellWithBranchName } from "@/app/actions/branch-territory";
@@ -275,10 +280,7 @@ export function GoogleMapViewClient({
     Awaited<ReturnType<typeof getInfrastructurePins>> | null
   >(null);
   const [infrastructureLayers, setInfrastructureLayers] =
-    useState<InfrastructureLayerVisibility>(() => ({
-      branches: adminTerritories.length === 0,
-      pos: false, // POS layer disabled for now
-    }));
+    useState<InfrastructureLayerVisibility>(DEFAULT_INFRASTRUCTURE_LAYERS);
   const [selectedPin, setSelectedPin] = useState<SelectedMapPin | null>(null);
   const [merchantDetailForPin, setMerchantDetailForPin] = useState<MerchantDetail | null>(null);
   const [pinDetailLoading, setPinDetailLoading] = useState(false);
@@ -298,7 +300,7 @@ export function GoogleMapViewClient({
     onTerritoryEditModeChange?.(Boolean(inDefineMode || inEditBoundaryMode));
   }, [inDefineMode, inEditBoundaryMode, onTerritoryEditModeChange]);
 
-  const apiKey = typeof window !== "undefined" ? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY : undefined;
+  const apiKey = typeof window !== "undefined" ? getGoogleMapsApiKey() : undefined;
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: apiKey ?? "",
@@ -366,6 +368,11 @@ export function GoogleMapViewClient({
     [adminTerritories]
   );
   const hasAdminTerritories = adminTerritoryPoints.length >= 2;
+  const showNationwideBranches =
+    hasInfrastructure &&
+    infrastructureLayers.branches &&
+    !userLocation &&
+    !branchTerritory;
 
   const mapCenter = useMemo(() => {
     if (userLocation) {
@@ -381,6 +388,7 @@ export function GoogleMapViewClient({
         lng: sum.lng / branchTerritory.length,
       };
     }
+    if (showNationwideBranches) return ETHIOPIA_CENTER;
     if (hasAdminTerritories) {
       const sum = adminTerritoryPoints.reduce(
         (acc, p) => ({ lat: acc.lat + p.lat, lng: acc.lng + p.lng }),
@@ -393,17 +401,26 @@ export function GoogleMapViewClient({
     }
     if (hasInfrastructure) return ETHIOPIA_CENTER;
     return ADDIS_ABABA_CENTER;
-  }, [userLocation, branchTerritory, hasAdminTerritories, adminTerritoryPoints, hasInfrastructure]);
+  }, [
+    userLocation,
+    branchTerritory,
+    showNationwideBranches,
+    hasAdminTerritories,
+    adminTerritoryPoints,
+    hasInfrastructure,
+  ]);
 
   const defaultZoom = userLocation
     ? 16
     : branchTerritory && branchTerritory.length > 0
       ? 14
-      : hasAdminTerritories
-        ? 11
-        : hasInfrastructure
-          ? ETHIOPIA_DEFAULT_ZOOM
-          : 14;
+      : showNationwideBranches
+        ? ETHIOPIA_DEFAULT_ZOOM
+        : hasAdminTerritories
+          ? 11
+          : hasInfrastructure
+            ? ETHIOPIA_DEFAULT_ZOOM
+            : 14;
 
   useEffect(() => {
     if (userLocation) {
@@ -681,14 +698,10 @@ export function GoogleMapViewClient({
           {!userLocation && adminTerritories.length === 0 && branchTerritory && branchTerritory.length >= 2 && (
             <FitMapToTerritoryGoogle points={branchTerritory} />
           )}
-          {!userLocation && hasAdminTerritories && (
+          {!userLocation && hasAdminTerritories && !showNationwideBranches && (
             <FitMapToAdminTerritoriesGoogle points={adminTerritoryPoints} />
           )}
-          {!userLocation &&
-            adminTerritories.length === 0 &&
-            !branchTerritory &&
-            hasInfrastructure &&
-            infrastructureLayers.branches && (
+          {!userLocation && showNationwideBranches && (
             <FitMapToPointsGoogle
               points={infrastructurePins!.branches.map((b) => ({ lat: b.lat, lng: b.lng }))}
             />
