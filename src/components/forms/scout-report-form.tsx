@@ -127,7 +127,6 @@ export function ScoutReportForm({
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [externalBanks, setExternalBanks] = useState<Awaited<ReturnType<typeof getExternalBanks>>>([]);
   const [externalBanksLoading, setExternalBanksLoading] = useState(true);
-  const [banksDropdownOpen, setBanksDropdownOpen] = useState(false);
   const [unlockedBadges, setUnlockedBadges] = useState<string[]>([]);
   const [showBadgePopup, setShowBadgePopup] = useState(false);
 
@@ -208,7 +207,6 @@ export function ScoutReportForm({
   const photoUrl = form.watch("photoUrl");
   const hasPhoto = !!photoUrl;
   const category = form.watch("category");
-  const selectedExternalBankIds = form.watch("externalBankIds");
   const isOtherCategory = category === "Other";
   const categoryOptions = [
     ...categories
@@ -456,6 +454,7 @@ export function ScoutReportForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel className="text-foreground">Other services used</FormLabel>
+              <p className="text-xs text-muted-foreground">Select all that apply</p>
               {externalBanksLoading ? (
                 <div className="min-h-[52px]">
                   <PortalLoadingInline className="min-h-[52px]" />
@@ -465,58 +464,31 @@ export function ScoutReportForm({
                   No other services configured. Ask an admin to add Other Services.
                 </p>
               ) : (
-                <div className="relative">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="min-h-[44px] w-full justify-between font-normal"
-                    onClick={() => setBanksDropdownOpen((prev) => !prev)}
-                  >
-                    <span className="truncate text-left">
-                      {field.value.length > 0
-                        ? `${field.value.length} selected`
-                        : "Select one or more services"}
-                    </span>
-                    <span className="text-xs text-muted-foreground">▼</span>
-                  </Button>
-                  {banksDropdownOpen && (
-                    <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-border bg-background p-2 shadow-lg">
-                      {externalBanks.map((bank) => {
-                        const checked = field.value.includes(bank.id);
-                        return (
-                          <label
-                            key={bank.id}
-                            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  field.onChange([...field.value, bank.id]);
-                                } else {
-                                  field.onChange(
-                                    field.value.filter((id) => id !== bank.id)
-                                  );
-                                }
-                              }}
-                              className="h-4 w-4 rounded border-border"
-                            />
-                            <span className="font-mono">{bank.name}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
+                <div className="rounded-md border border-border bg-card p-2">
+                  {externalBanks.map((bank) => {
+                    const checked = field.value.includes(bank.id);
+                    return (
+                      <label
+                        key={bank.id}
+                        className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded px-2 text-sm hover:bg-muted"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              field.onChange([...field.value, bank.id]);
+                            } else {
+                              field.onChange(field.value.filter((id) => id !== bank.id));
+                            }
+                          }}
+                          className="h-4 w-4 shrink-0 rounded border-border"
+                        />
+                        <span className="font-mono">{bank.name}</span>
+                      </label>
+                    );
+                  })}
                 </div>
-              )}
-              {selectedExternalBankIds.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {selectedExternalBankIds
-                    .map((id) => externalBanks.find((b) => b.id === id)?.name)
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
               )}
               <FormMessage />
             </FormItem>

@@ -1,31 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  getLeadsAndMerchantsByZoneCode,
-  getLeadsAndMerchantsByCell,
-} from "@/app/actions/leads-list";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
-
-type LeadRow = {
-  id: string;
-  businessName: string;
-  category: string;
-  estimatedVolume: string;
-  scoutedBy: { id: string; name: string };
-  createdAt: Date;
-};
-
-type MerchantRow = {
-  id: string;
-  ownerName: string;
-  phoneNumber: string;
-  lead: { businessName: string; category: string } | null;
-  inductedBy: { id: string; name: string };
-  onboardingDate: Date;
-};
+import { useCellMerchantsData } from "@/components/map/useCellMerchantsData";
 
 type Filter = "all" | "scouted" | "registered";
 
@@ -40,25 +19,12 @@ export function CellMerchantsPanel({
   /** When set, load leads/merchants whose location is inside this polygon (correct after territory reshape). */
   cellCoordinates?: { lat: number; lng: number }[] | null;
 }) {
-  const [data, setData] = useState<{ leads: LeadRow[]; merchants: MerchantRow[] } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
-
-  useEffect(() => {
-    setLoading(true);
-    const coords = cellCoordinates && cellCoordinates.length >= 3 ? cellCoordinates : null;
-    if (branchId && coords) {
-      getLeadsAndMerchantsByCell(branchId, coords)
-        .then(setData)
-        .catch(() => setData({ leads: [], merchants: [] }))
-        .finally(() => setLoading(false));
-    } else {
-      getLeadsAndMerchantsByZoneCode(zoneCode)
-        .then(setData)
-        .catch(() => setData({ leads: [], merchants: [] }))
-        .finally(() => setLoading(false));
-    }
-  }, [zoneCode, branchId, cellCoordinates]);
+  const { leads, merchants, loading } = useCellMerchantsData({
+    zoneCode,
+    branchId,
+    cellCoordinates,
+  });
 
   if (loading) {
     return (
@@ -68,8 +34,6 @@ export function CellMerchantsPanel({
     );
   }
 
-  const leads = data?.leads ?? [];
-  const merchants = data?.merchants ?? [];
   const showScouted = filter === "all" || filter === "scouted";
   const showRegistered = filter === "all" || filter === "registered";
 
