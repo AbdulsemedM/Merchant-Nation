@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CommandLeaderboard, type LeaderboardEntry } from "./CommandLeaderboard";
 import { OfficerProfile } from "./OfficerProfile";
 import { saveBranchTerritory, updateTerritoryCell } from "@/app/actions/branch-territory";
-import type { TerritoryCellWithCoords, AdminBranchTerritory } from "@/app/actions/branch-territory";
+import type { TerritoryCellWithCoords, AdminBranchTerritory, NeighborBranchTerritory } from "@/app/actions/branch-territory";
 import type { MapZoneStatus } from "@/lib/zoneStatusColors";
 
 function getGreeting(): string {
@@ -53,6 +53,7 @@ export function TerritoryDashboard({
   territoryCells = [],
   isBranchManager = false,
   adminTerritories,
+  neighborTerritories,
   rankTier,
 }: {
   userName: string;
@@ -84,6 +85,7 @@ export function TerritoryDashboard({
   territoryCells?: TerritoryCellWithCoords[];
   isBranchManager?: boolean;
   adminTerritories?: AdminBranchTerritory[];
+  neighborTerritories?: NeighborBranchTerritory[];
   /** Optional tier label from ranks config (e.g. R1, R2, R3). */
   rankTier?: string;
 }) {
@@ -227,6 +229,7 @@ export function TerritoryDashboard({
             territoryCells={territoryCells}
             isBranchManager={isBranchManager}
             adminTerritories={adminTerritories}
+            neighborTerritories={neighborTerritories}
             onSaveTerritory={!adminTerritories?.length && isBranchManager && branchId ? handleSaveTerritory : undefined}
             onUpdateCell={!adminTerritories?.length && isBranchManager ? handleUpdateCell : undefined}
             onTerritoryEditModeChange={setTerritoryEditModeActive}

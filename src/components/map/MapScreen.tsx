@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import type { TerritoryCellWithCoords, AdminBranchTerritory } from "@/app/actions/branch-territory";
+import type { TerritoryCellWithCoords, AdminBranchTerritory, NeighborBranchTerritory } from "@/app/actions/branch-territory";
 import type { MapZoneStatus } from "@/lib/zoneStatusColors";
 
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
@@ -38,6 +38,7 @@ export function MapScreen({
   onSaveTerritory,
   onUpdateCell,
   adminTerritories,
+  neighborTerritories,
   onTerritoryEditModeChange: onTerritoryEditModeChangeFromParent,
 }: {
   useGoogleMaps?: boolean;
@@ -50,6 +51,7 @@ export function MapScreen({
   onSaveTerritory?: (points: { lat: number; lng: number }[]) => Promise<void>;
   onUpdateCell?: (cellId: string, data: { status?: MapZoneStatus; label?: string | null }) => Promise<void>;
   adminTerritories?: AdminBranchTerritory[];
+  neighborTerritories?: NeighborBranchTerritory[];
   onTerritoryEditModeChange?: (active: boolean) => void;
 }) {
   const [territoryEditModeActiveLocal, setTerritoryEditModeActiveLocal] = useState(false);
@@ -64,6 +66,7 @@ export function MapScreen({
     onSaveTerritory,
     onUpdateCell,
     adminTerritories,
+    neighborTerritories,
     onTerritoryEditModeChange,
   };
   const mapMinHeight = onTerritoryEditModeChangeFromParent

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { authorize, type Role } from "@/lib/auth";
 import { subdivideTerritory, getGridSizeForBounds, normalizeTerritoryPoints } from "@/lib/territoryGrid";
+import { polygonCentroid, haversineDistanceKm } from "@/lib/territoryNeighbors";
 import { logActivity } from "@/app/actions/activity-log";
 import type { ZoneStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
@@ -193,6 +194,57 @@ export type AdminBranchTerritory = {
   territoryBounds: { lat: number; lng: number }[];
   cells: TerritoryCellWithBranchName[];
 };
+
+export type NeighborBranchTerritory = {
+  branchId: string;
+  branchName: string;
+  territoryBounds: { lat: number; lng: number }[];
+  distanceKm: number;
+};
+
+/** Nearest branches with defined territories (view-only boundaries for map context). */
+export async function getNeighboringBranchTerritories(
+  branchId: string,
+  limit = 3
+): Promise<NeighborBranchTerritory[]> {
+  const ok = await canAccessBranchForRead(branchId);
+  if (!ok) return [];
+
+  const ownBranch = await prisma.branch.findUnique({
+    where: { id: branchId },
+    select: { territoryBounds: true },
+  });
+  const ownBounds = ownBranch?.territoryBounds as { lat: number; lng: number }[] | null;
+  if (!ownBounds || !Array.isArray(ownBounds) || ownBounds.length < 3) return [];
+
+  const ownCentroid = polygonCentroid(ownBounds);
+  if (!ownCentroid) return [];
+
+  const candidates = await prisma.branch.findMany({
+    where: {
+      id: { not: branchId },
+      territoryBounds: { not: Prisma.DbNull },
+    },
+    select: { id: true, name: true, territoryBounds: true },
+  });
+
+  const neighbors: NeighborBranchTerritory[] = [];
+  for (const b of candidates) {
+    const bounds = b.territoryBounds as { lat: number; lng: number }[] | null;
+    if (!bounds || !Array.isArray(bounds) || bounds.length < 3) continue;
+    const centroid = polygonCentroid(bounds);
+    if (!centroid) continue;
+    neighbors.push({
+      branchId: b.id,
+      branchName: b.name,
+      territoryBounds: bounds,
+      distanceKm: haversineDistanceKm(ownCentroid, centroid),
+    });
+  }
+
+  neighbors.sort((a, b) => a.distanceKm - b.distanceKm);
+  return neighbors.slice(0, limit);
+}
 
 export async function getAllBranchTerritoriesForAdmin(): Promise<AdminBranchTerritory[]> {
   await authorize(["ADMIN"] as Role[], "getAllBranchTerritoriesForAdmin");

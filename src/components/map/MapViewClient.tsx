@@ -35,7 +35,8 @@ import {
 import { useUserRole } from "@/contexts/UserRoleContext";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
 import type { SelectedZone } from "./types";
-import type { TerritoryCellWithCoords, AdminBranchTerritory, TerritoryCellWithBranchName } from "@/app/actions/branch-territory";
+import type { TerritoryCellWithCoords, AdminBranchTerritory, TerritoryCellWithBranchName, NeighborBranchTerritory } from "@/app/actions/branch-territory";
+import { NeighborTerritoryLayerLeaflet } from "./NeighborTerritoryLayer";
 import { getMapPins, type MapPinScouted, type MapPinInducted } from "@/app/actions/map-pins";
 import { getMerchantDetail, type MerchantDetail } from "@/app/actions/merchants";
 import { MapPinDetailDrawer, type SelectedMapPin } from "./MapPinDetailDrawer";
@@ -335,6 +336,7 @@ export function MapViewClient({
   onSaveTerritory,
   onUpdateCell,
   adminTerritories = [],
+  neighborTerritories = [],
   onTerritoryEditModeChange,
 }: {
   zoneCount?: number;
@@ -346,6 +348,7 @@ export function MapViewClient({
   onSaveTerritory?: (points: { lat: number; lng: number }[]) => Promise<void>;
   onUpdateCell?: (cellId: string, data: { status?: MapZoneStatus; label?: string | null }) => Promise<void>;
   adminTerritories?: AdminBranchTerritory[];
+  neighborTerritories?: NeighborBranchTerritory[];
   onTerritoryEditModeChange?: (active: boolean) => void;
 } = {}) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -371,12 +374,19 @@ export function MapViewClient({
   >(null);
   const [infrastructureLayers, setInfrastructureLayers] =
     useState<InfrastructureLayerVisibility>(DEFAULT_INFRASTRUCTURE_LAYERS);
+  const [showNeighbors, setShowNeighbors] = useState(true);
   const [selectedPin, setSelectedPin] = useState<SelectedMapPin | null>(null);
   const [merchantDetailForPin, setMerchantDetailForPin] = useState<MerchantDetail | null>(null);
   const [pinDetailLoading, setPinDetailLoading] = useState(false);
 
   const inDefineMode = isBranchManager && !branchTerritory && !isEditingBoundary;
   const inEditBoundaryMode = isBranchManager && branchTerritory && isEditingBoundary;
+  const neighborsVisible =
+    showNeighbors &&
+    !inDefineMode &&
+    !inEditBoundaryMode &&
+    adminTerritories.length === 0 &&
+    neighborTerritories.length > 0;
   const mapClickEnabled = inDefineMode;
   const pointsToSave = boundaryPoints;
 
@@ -476,6 +486,15 @@ export function MapViewClient({
     () => adminTerritories.flatMap((t) => t.territoryBounds),
     [adminTerritories]
   );
+  const fitBoundsPoints = useMemo(() => {
+    const points: { lat: number; lng: number }[] = [...(branchTerritory ?? [])];
+    if (neighborsVisible) {
+      for (const neighbor of neighborTerritories) {
+        points.push(...neighbor.territoryBounds);
+      }
+    }
+    return points;
+  }, [branchTerritory, neighborTerritories, neighborsVisible]);
   const hasAdminTerritories = adminTerritoryPoints.length >= 2;
   const showNationwideBranches =
     hasInfrastructure &&
@@ -729,8 +748,8 @@ export function MapViewClient({
           />
           <MapSizeFix />
           <MapCenterHandler />
-          {!userLocation && adminTerritories.length === 0 && branchTerritory && branchTerritory.length >= 2 && (
-            <FitMapToTerritory points={branchTerritory} />
+          {!userLocation && adminTerritories.length === 0 && fitBoundsPoints.length >= 2 && (
+            <FitMapToTerritory points={fitBoundsPoints} />
           )}
           {!userLocation && hasAdminTerritories && !showNationwideBranches && (
             <FitMapToAdminTerritories points={adminTerritoryPoints} />
@@ -745,6 +764,12 @@ export function MapViewClient({
             <AdminTerritoryContent
               adminTerritories={adminTerritories}
               onCellClick={handleTerritoryCellClick}
+            />
+          )}
+          {neighborsVisible && (
+            <NeighborTerritoryLayerLeaflet
+              neighbors={neighborTerritories}
+              visible={neighborsVisible}
             />
           )}
           {adminTerritories.length === 0 && branchTerritory && (
@@ -876,6 +901,9 @@ export function MapViewClient({
           posLocationCount={infrastructurePins?.pos.length ?? 0}
           infrastructureLayers={infrastructureLayers}
           onInfrastructureLayersChange={setInfrastructureLayers}
+          showNeighbors={showNeighbors}
+          onShowNeighborsChange={setShowNeighbors}
+          hasNeighborTerritories={neighborTerritories.length > 0 && adminTerritories.length === 0}
         />
         <MyLocationButton onCenter={centerOnUser} />
         {locationError && (

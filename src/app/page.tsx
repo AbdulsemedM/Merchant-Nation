@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getLeaderboardForDashboard, getProfileStats } from "@/app/actions/users";
 import { getRanks } from "@/app/actions/ranks";
 import { getTerritoryDashboardStats } from "@/app/actions/mission";
-import { getBranchTerritoryForMember, getTerritoryCellsForMember, getAllBranchTerritoriesForAdmin } from "@/app/actions/branch-territory";
+import { getBranchTerritoryForMember, getTerritoryCellsForMember, getAllBranchTerritoriesForAdmin, getNeighboringBranchTerritories } from "@/app/actions/branch-territory";
 import { xpProgress, xpToNextRank, nextRankLabel } from "@/lib/rank";
 import { TerritoryDashboard } from "@/components/territory/TerritoryDashboard";
 import { isGoogleMapsConfigured } from "@/lib/google-maps";
@@ -51,7 +51,7 @@ export default async function HomePage() {
     });
   const currentUserRankTier = rankTierByCode[user.rank];
 
-  const [stats, leaderboardData, profileStats, branchTerritory, territoryCells, adminTerritories] =
+  const [stats, leaderboardData, profileStats, branchTerritory, territoryCells, adminTerritories, neighborTerritories] =
     await Promise.all([
       getTerritoryDashboardStats(branchIdForStatsAndMap),
       getLeaderboardForDashboard(
@@ -70,6 +70,9 @@ export default async function HomePage() {
         ? getTerritoryCellsForMember(branchIdForStatsAndMap).catch(() => [])
         : Promise.resolve([]),
       isAdmin ? getAllBranchTerritoriesForAdmin().catch(() => []) : Promise.resolve([]),
+      !isAdmin && branchIdForStatsAndMap
+        ? getNeighboringBranchTerritories(branchIdForStatsAndMap, 3).catch(() => [])
+        : Promise.resolve([]),
     ]);
 
   const xpProgressData = xpProgress(ranks, user.xp);
@@ -133,6 +136,7 @@ export default async function HomePage() {
       territoryCells={territoryCells}
       isBranchManager={isBranchManager}
       adminTerritories={isAdmin ? adminTerritories : undefined}
+      neighborTerritories={!isAdmin ? neighborTerritories : undefined}
     />
   );
 }

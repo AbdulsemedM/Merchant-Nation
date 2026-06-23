@@ -464,13 +464,13 @@ export function ScoutReportForm({
                   No other services configured. Ask an admin to add Other Services.
                 </p>
               ) : (
-                <div className="rounded-md border border-border bg-card p-2">
+                <div className="grid grid-cols-2 gap-1 rounded-md border border-border bg-card p-2 sm:grid-cols-3">
                   {externalBanks.map((bank) => {
                     const checked = field.value.includes(bank.id);
                     return (
                       <label
                         key={bank.id}
-                        className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded px-2 text-sm hover:bg-muted"
+                        className="flex min-h-[40px] cursor-pointer items-center gap-2 rounded px-2 text-sm hover:bg-muted"
                       >
                         <input
                           type="checkbox"

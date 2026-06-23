@@ -38,7 +38,8 @@ import {
 } from "./MapOverlay";
 import { useUserRole } from "@/contexts/UserRoleContext";
 import type { SelectedZone } from "./types";
-import type { TerritoryCellWithCoords, AdminBranchTerritory, TerritoryCellWithBranchName } from "@/app/actions/branch-territory";
+import type { TerritoryCellWithCoords, AdminBranchTerritory, TerritoryCellWithBranchName, NeighborBranchTerritory } from "@/app/actions/branch-territory";
+import { NeighborTerritoryLayerGoogle } from "./NeighborTerritoryLayer";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
 import { getMapPins, type MapPinScouted, type MapPinInducted } from "@/app/actions/map-pins";
 import { getMerchantDetail, type MerchantDetail } from "@/app/actions/merchants";
@@ -244,6 +245,7 @@ export function GoogleMapViewClient({
   onSaveTerritory,
   onUpdateCell,
   adminTerritories = [],
+  neighborTerritories = [],
   onTerritoryEditModeChange,
 }: {
   zoneCount?: number;
@@ -255,6 +257,7 @@ export function GoogleMapViewClient({
   onSaveTerritory?: (points: { lat: number; lng: number }[]) => Promise<void>;
   onUpdateCell?: (cellId: string, data: { status?: MapZoneStatus; label?: string | null }) => Promise<void>;
   adminTerritories?: AdminBranchTerritory[];
+  neighborTerritories?: NeighborBranchTerritory[];
   onTerritoryEditModeChange?: (active: boolean) => void;
 } = {}) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -281,12 +284,19 @@ export function GoogleMapViewClient({
   >(null);
   const [infrastructureLayers, setInfrastructureLayers] =
     useState<InfrastructureLayerVisibility>(DEFAULT_INFRASTRUCTURE_LAYERS);
+  const [showNeighbors, setShowNeighbors] = useState(true);
   const [selectedPin, setSelectedPin] = useState<SelectedMapPin | null>(null);
   const [merchantDetailForPin, setMerchantDetailForPin] = useState<MerchantDetail | null>(null);
   const [pinDetailLoading, setPinDetailLoading] = useState(false);
 
   const inDefineMode = isBranchManager && !branchTerritory && !isEditingBoundary;
   const inEditBoundaryMode = isBranchManager && branchTerritory && isEditingBoundary;
+  const neighborsVisible =
+    showNeighbors &&
+    !inDefineMode &&
+    !inEditBoundaryMode &&
+    adminTerritories.length === 0 &&
+    neighborTerritories.length > 0;
   const mapClickEnabled = inDefineMode;
   const pointsToSave = boundaryPoints;
 
@@ -367,6 +377,15 @@ export function GoogleMapViewClient({
     () => adminTerritories.flatMap((t) => t.territoryBounds),
     [adminTerritories]
   );
+  const fitBoundsPoints = useMemo(() => {
+    const points: { lat: number; lng: number }[] = [...(branchTerritory ?? [])];
+    if (neighborsVisible) {
+      for (const neighbor of neighborTerritories) {
+        points.push(...neighbor.territoryBounds);
+      }
+    }
+    return points;
+  }, [branchTerritory, neighborTerritories, neighborsVisible]);
   const hasAdminTerritories = adminTerritoryPoints.length >= 2;
   const showNationwideBranches =
     hasInfrastructure &&
@@ -678,6 +697,12 @@ export function GoogleMapViewClient({
               onCellClick={handleTerritoryCellClick}
             />
           )}
+          {neighborsVisible && (
+            <NeighborTerritoryLayerGoogle
+              neighbors={neighborTerritories}
+              visible={neighborsVisible}
+            />
+          )}
           {adminTerritories.length === 0 && branchTerritory && (
             <TerritoryContentGoogle
               branchTerritory={branchTerritory}
@@ -695,8 +720,8 @@ export function GoogleMapViewClient({
               onBoundaryPathChange={inEditBoundaryMode ? setBoundaryPoints : undefined}
             />
           )}
-          {!userLocation && adminTerritories.length === 0 && branchTerritory && branchTerritory.length >= 2 && (
-            <FitMapToTerritoryGoogle points={branchTerritory} />
+          {!userLocation && adminTerritories.length === 0 && fitBoundsPoints.length >= 2 && (
+            <FitMapToTerritoryGoogle points={fitBoundsPoints} />
           )}
           {!userLocation && hasAdminTerritories && !showNationwideBranches && (
             <FitMapToAdminTerritoriesGoogle points={adminTerritoryPoints} />
@@ -820,6 +845,9 @@ export function GoogleMapViewClient({
           posLocationCount={infrastructurePins?.pos.length ?? 0}
           infrastructureLayers={infrastructureLayers}
           onInfrastructureLayersChange={setInfrastructureLayers}
+          showNeighbors={showNeighbors}
+          onShowNeighborsChange={setShowNeighbors}
+          hasNeighborTerritories={neighborTerritories.length > 0 && adminTerritories.length === 0}
         />
         <MyLocationButton onCenter={centerOnUser} />
 

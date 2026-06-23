@@ -42,6 +42,10 @@ export interface MapOverlayProps {
   posLocationCount?: number;
   infrastructureLayers?: InfrastructureLayerVisibility;
   onInfrastructureLayersChange?: (next: InfrastructureLayerVisibility) => void;
+  /** Show neighboring territory boundaries (branch manager / player). */
+  showNeighbors?: boolean;
+  onShowNeighborsChange?: (show: boolean) => void;
+  hasNeighborTerritories?: boolean;
 }
 
 export function MapOverlay({
@@ -60,6 +64,9 @@ export function MapOverlay({
   posLocationCount = 0,
   infrastructureLayers = DEFAULT_INFRASTRUCTURE_LAYERS,
   onInfrastructureLayersChange,
+  showNeighbors = true,
+  onShowNeighborsChange,
+  hasNeighborTerritories = false,
 }: MapOverlayProps) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -194,6 +201,26 @@ export function MapOverlay({
                       */}
                     </>
                   )}
+                  {hasNeighborTerritories && onShowNeighborsChange && (
+                    <>
+                      <p className="mb-2 mt-2 font-mono text-xs font-semibold text-foreground">
+                        Territories
+                      </p>
+                      <label className="mb-2 flex cursor-pointer items-center gap-2 py-1 font-mono text-xs">
+                        <input
+                          type="checkbox"
+                          checked={showNeighbors}
+                          onChange={() => onShowNeighborsChange(!showNeighbors)}
+                          className="h-3.5 w-3.5 rounded border-border"
+                        />
+                        <span
+                          className="inline-block size-3 shrink-0 rounded-sm border border-dashed"
+                          style={{ borderColor: "#64748b", backgroundColor: "rgba(100,116,139,0.2)" }}
+                        />
+                        Neighbors
+                      </label>
+                    </>
+                  )}
                   <p className="mb-2 font-mono text-xs font-semibold text-foreground">
                     Show zones
                   </p>
@@ -304,6 +331,15 @@ export function MapOverlay({
               <span>Inducted</span>
             </div>
           </>
+        )}
+        {hasNeighborTerritories && (
+          <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+            <span
+              className="size-3.5 shrink-0 rounded-sm border border-dashed"
+              style={{ borderColor: "#64748b", backgroundColor: "rgba(100,116,139,0.2)" }}
+            />
+            <span>Neighboring territory (view only)</span>
+          </div>
         )}
         {ZONE_STATUS_LABELS.map((status) => (
           <div
