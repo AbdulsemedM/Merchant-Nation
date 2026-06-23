@@ -195,78 +195,86 @@ export function VerifyStep({ leadId, lead, onContinue, onSaveProgress, saving }:
         <CardTitle>Verify business details</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        {lead.photoUrl && (
-          <div>
-            {photoFullscreen && (
-              <ImageFullscreen
-                src={lead.photoUrl}
-                alt={lead.businessName}
-                caption={lead.businessName}
-                onClose={() => setPhotoFullscreen(false)}
+        <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+          <div className="rounded-md border border-border bg-muted/30 p-3">
+            <div className="grid gap-x-6 sm:grid-cols-2">
+              <DetailRow label="Business name" value={lead.businessName} />
+              <DetailRow label="Category" value={lead.category} />
+              <DetailRow label="Zone" value={lead.zone?.code ?? "—"} />
+              <DetailRow label="Estimated volume" value={formatVolume(lead.estimatedVolume)} />
+              <DetailRow
+                label="Coordinates"
+                value={`${lead.locationLat.toFixed(5)}, ${lead.locationLng.toFixed(5)}`}
               />
+              <DetailRow label="Scouted by" value={lead.scoutedByName} />
+              <DetailRow label="Scout date" value={lead.scoutedAt} />
+              {lead.taskReportType && (
+                <DetailRow label="Mission report type" value={lead.taskReportType} />
+              )}
+              <div className="sm:col-span-2">
+                <DetailRow label="Other services used" value={otherServices} />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {lead.photoUrl && (
+              <div>
+                {photoFullscreen && (
+                  <ImageFullscreen
+                    src={lead.photoUrl}
+                    alt={lead.businessName}
+                    caption={lead.businessName}
+                    onClose={() => setPhotoFullscreen(false)}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPhotoFullscreen(true)}
+                  className="cursor-zoom-in w-full rounded-lg border border-border transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <img
+                    src={lead.photoUrl}
+                    alt={lead.businessName}
+                    className="h-40 w-full rounded-lg object-cover lg:h-48"
+                  />
+                </button>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={() => setPhotoFullscreen(true)}
-              className="cursor-zoom-in w-full rounded-lg border border-border transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <img
-                src={lead.photoUrl}
-                alt={lead.businessName}
-                className="h-32 w-full rounded-lg object-cover"
+
+            <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+              <p className="font-medium text-foreground">Lead note</p>
+              <p className="text-muted-foreground text-xs">
+                Save context about this merchant for later.
+              </p>
+              <Textarea
+                value={note}
+                onChange={(e) => {
+                  setNote(e.target.value);
+                  setNoteSaved(false);
+                }}
+                placeholder="Add a lead or note about this merchant…"
+                className="min-h-28"
               />
-            </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveNote}
+                  disabled={noteSaving || submitting || saving}
+                >
+                  {noteSaving ? "Saving…" : "Save note"}
+                </Button>
+                {noteSaved && (
+                  <span className="text-xs text-muted-foreground">Note saved</span>
+                )}
+              </div>
+              {noteError && (
+                <p className="text-destructive text-xs">{noteError}</p>
+              )}
+            </div>
           </div>
-        )}
-
-        <div className="rounded-md border border-border bg-muted/30 p-3">
-          <DetailRow label="Business name" value={lead.businessName} />
-          <DetailRow label="Category" value={lead.category} />
-          <DetailRow label="Zone" value={lead.zone?.code ?? "—"} />
-          <DetailRow label="Estimated volume" value={formatVolume(lead.estimatedVolume)} />
-          <DetailRow
-            label="Coordinates"
-            value={`${lead.locationLat.toFixed(5)}, ${lead.locationLng.toFixed(5)}`}
-          />
-          <DetailRow label="Other services used" value={otherServices} />
-          <DetailRow label="Scouted by" value={lead.scoutedByName} />
-          <DetailRow label="Scout date" value={lead.scoutedAt} />
-          {lead.taskReportType && (
-            <DetailRow label="Mission report type" value={lead.taskReportType} />
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <p className="font-medium text-foreground">Lead note</p>
-          <p className="text-muted-foreground text-xs">
-            Save context about this merchant for later.
-          </p>
-          <Textarea
-            value={note}
-            onChange={(e) => {
-              setNote(e.target.value);
-              setNoteSaved(false);
-            }}
-            placeholder="Add a lead or note about this merchant…"
-            className="min-h-24"
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSaveNote}
-              disabled={noteSaving || submitting || saving}
-            >
-              {noteSaving ? "Saving…" : "Save note"}
-            </Button>
-            {noteSaved && (
-              <span className="text-xs text-muted-foreground">Note saved</span>
-            )}
-          </div>
-          {noteError && (
-            <p className="text-destructive text-xs">{noteError}</p>
-          )}
         </div>
 
         <div className="space-y-3">

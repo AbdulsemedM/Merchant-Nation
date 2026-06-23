@@ -262,6 +262,31 @@ export async function updateLeadFutureProductInterests(
   }
 }
 
+/** Record which products the merchant is already registered for. BRANCH_MANAGER, PLAYER. */
+export async function updateLeadRegisteredProductInterests(
+  leadId: string,
+  registered: string[]
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await authorize(["BRANCH_MANAGER", "PLAYER"], "updateLeadRegisteredProductInterests");
+    const editable = await assertLeadEditable(leadId);
+    if (!editable.ok) return editable;
+    const valid = registered.filter(isInductionProductKey);
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { registeredProductInterests: valid },
+    });
+    revalidatePath(`/induct/${leadId}`);
+    return { ok: true };
+  } catch (e) {
+    console.error("updateLeadRegisteredProductInterests error", e);
+    return {
+      ok: false,
+      error: getUserFacingErrorMessage(e, "Failed to save registered products. Please try again."),
+    };
+  }
+}
+
 /** Returns true if task exists, is assigned to userId, and status is PENDING or IN_PROGRESS. */
 async function canLinkLeadToTask(userId: string, taskId: string): Promise<boolean> {
   const task = await prisma.missionTask.findUnique({

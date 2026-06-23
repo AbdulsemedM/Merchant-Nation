@@ -84,6 +84,7 @@ export default async function InductPage({
       <InductionProductsCard
         leadId={lead.id}
         initialInterests={lead.futureProductInterests}
+        initialRegistered={lead.registeredProductInterests}
       />
 
       <InductionWizard

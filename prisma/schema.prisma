@@ -115,6 +115,7 @@ model Lead {
   externalBankIds          String[]     @default([])
   inductionNote            String?
   futureProductInterests   String[]     @default([])
+  registeredProductInterests String[] @default([])
   missionTaskId            String?
   taskReportType           String?
   missionTask     MissionTask? @relation(fields: [missionTaskId], references: [id])
