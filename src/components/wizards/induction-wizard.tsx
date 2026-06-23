@@ -20,6 +20,13 @@ export interface LeadForInduction {
   locationLat: number;
   locationLng: number;
   zone: { code: string } | null;
+  estimatedVolume: string;
+  photoUrl?: string | null;
+  externalBankNames: string[];
+  scoutedByName: string;
+  scoutedAt: string;
+  taskReportType?: string | null;
+  inductionNote?: string | null;
 }
 
 export interface InductionWizardProps {
@@ -104,6 +111,13 @@ export function InductionWizard({ lead, initialStep = 0, initialKycValues }: Ind
             locationLat: lead.locationLat,
             locationLng: lead.locationLng,
             zone: lead.zone,
+            estimatedVolume: lead.estimatedVolume,
+            photoUrl: lead.photoUrl,
+            externalBankNames: lead.externalBankNames,
+            scoutedByName: lead.scoutedByName,
+            scoutedAt: lead.scoutedAt,
+            taskReportType: lead.taskReportType,
+            inductionNote: lead.inductionNote,
           }}
           onContinue={next}
           onSaveProgress={() => handleSaveAndContinueLater(1)}

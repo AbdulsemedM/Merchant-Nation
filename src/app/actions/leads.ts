@@ -11,6 +11,7 @@ import { updateUserStreak } from "@/backend/services/streak-service";
 import { checkAndUnlockAchievements } from "@/backend/services/achievement-service";
 import { routeNotification } from "@/backend/services/notification-router-service";
 import { getUserFacingErrorMessage } from "@/lib/errors";
+import { isInductionProductKey } from "@/lib/induction-products";
 
 const SCOUT_XP = 20;
 
@@ -202,6 +203,62 @@ export async function updateLeadLocation(
   } catch (e) {
     console.error("updateLeadLocation error", e);
     return { ok: false, error: getUserFacingErrorMessage(e, "Update failed. Please try again.") };
+  }
+}
+
+async function assertLeadEditable(leadId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { id: true, status: true },
+  });
+  if (!lead) return { ok: false, error: "Lead not found" };
+  if (lead.status === "CONVERTED") return { ok: false, error: "Lead already converted" };
+  return { ok: true };
+}
+
+/** Save a note about the merchant during induction. BRANCH_MANAGER, PLAYER. */
+export async function updateLeadInductionNote(
+  leadId: string,
+  note: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await authorize(["BRANCH_MANAGER", "PLAYER"], "updateLeadInductionNote");
+    const editable = await assertLeadEditable(leadId);
+    if (!editable.ok) return editable;
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { inductionNote: note.trim() || null },
+    });
+    revalidatePath(`/induct/${leadId}`);
+    return { ok: true };
+  } catch (e) {
+    console.error("updateLeadInductionNote error", e);
+    return { ok: false, error: getUserFacingErrorMessage(e, "Failed to save note. Please try again.") };
+  }
+}
+
+/** Record which products the merchant may want in the future. BRANCH_MANAGER, PLAYER. */
+export async function updateLeadFutureProductInterests(
+  leadId: string,
+  interests: string[]
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await authorize(["BRANCH_MANAGER", "PLAYER"], "updateLeadFutureProductInterests");
+    const editable = await assertLeadEditable(leadId);
+    if (!editable.ok) return editable;
+    const valid = interests.filter(isInductionProductKey);
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { futureProductInterests: valid },
+    });
+    revalidatePath(`/induct/${leadId}`);
+    return { ok: true };
+  } catch (e) {
+    console.error("updateLeadFutureProductInterests error", e);
+    return {
+      ok: false,
+      error: getUserFacingErrorMessage(e, "Failed to save product interests. Please try again."),
+    };
   }
 }
 

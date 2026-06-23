@@ -112,9 +112,11 @@ model Lead {
   estimatedVolume String
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
-  externalBankIds String[]     @default([])
-  missionTaskId   String?
-  taskReportType  String?
+  externalBankIds          String[]     @default([])
+  inductionNote            String?
+  futureProductInterests   String[]     @default([])
+  missionTaskId            String?
+  taskReportType           String?
   missionTask     MissionTask? @relation(fields: [missionTaskId], references: [id])
   scoutedBy       User         @relation(fields: [scoutedById], references: [id])
   zone            Zone         @relation(fields: [zoneId], references: [id])

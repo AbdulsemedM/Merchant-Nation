@@ -3,9 +3,75 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Smartphone } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { MapPin, Smartphone, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { updateLeadLocation } from "@/app/actions/leads";
+import { updateLeadLocation, updateLeadInductionNote } from "@/app/actions/leads";
+
+function ImageFullscreen({
+  src,
+  alt,
+  caption,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  caption?: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={caption ?? "Image fullscreen"}
+    >
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute right-2 top-2 z-10 rounded-full bg-white/10 text-white hover:bg-white/20"
+        onClick={onClose}
+        aria-label="Close"
+      >
+        <X className="size-5" />
+      </Button>
+      <button
+        type="button"
+        className="flex max-h-full max-w-full flex-col items-center justify-center focus:outline-none"
+        onClick={onClose}
+      >
+        <img
+          src={src}
+          alt={alt}
+          className="max-h-[85vh] max-w-full object-contain"
+          onClick={(e) => e.stopPropagation()}
+        />
+        {caption && (
+          <span className="mt-2 text-sm text-white/80">{caption}</span>
+        )}
+      </button>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
+  if (value == null || value === "") return null;
+  return (
+    <div className="flex flex-col gap-0.5 py-2">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function formatVolume(volume: string): string {
+  const labels: Record<string, string> = {
+    LOW: "Low",
+    MEDIUM: "Medium",
+    HIGH: "High",
+  };
+  return labels[volume] ?? volume;
+}
 
 export interface VerifyStepProps {
   leadId: string;
@@ -15,6 +81,13 @@ export interface VerifyStepProps {
     locationLat: number;
     locationLng: number;
     zone?: { code: string } | null;
+    estimatedVolume: string;
+    photoUrl?: string | null;
+    externalBankNames: string[];
+    scoutedByName: string;
+    scoutedAt: string;
+    taskReportType?: string | null;
+    inductionNote?: string | null;
   };
   onContinue: () => void;
   /** When provided, show "Save and continue later" (saves progress and leaves). */
@@ -31,6 +104,11 @@ export function VerifyStep({ leadId, lead, onContinue, onSaveProgress, saving }:
   const [geoError, setGeoError] = useState<string | null>(null);
   const [loadingGeo, setLoadingGeo] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [note, setNote] = useState(lead.inductionNote ?? "");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [photoFullscreen, setPhotoFullscreen] = useState(false);
 
   useEffect(() => {
     if (locationChoice !== "device") return;
@@ -54,7 +132,33 @@ export function VerifyStep({ leadId, lead, onContinue, onSaveProgress, saving }:
     );
   }, [locationChoice]);
 
+  const persistNote = async (): Promise<boolean> => {
+    setNoteSaving(true);
+    setNoteError(null);
+    setNoteSaved(false);
+    try {
+      const result = await updateLeadInductionNote(leadId, note);
+      if (!result.ok) {
+        setNoteError(result.error ?? "Failed to save note");
+        return false;
+      }
+      setNoteSaved(true);
+      return true;
+    } catch {
+      setNoteError("Failed to save note");
+      return false;
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  const handleSaveNote = async () => {
+    await persistNote();
+  };
+
   const handleContinue = async () => {
+    await persistNote();
+
     if (locationChoice === "device" && deviceLocation) {
       setSubmitting(true);
       try {
@@ -74,8 +178,16 @@ export function VerifyStep({ leadId, lead, onContinue, onSaveProgress, saving }:
     onContinue();
   };
 
+  const handleSaveProgress = async () => {
+    await persistNote();
+    await onSaveProgress?.();
+  };
+
   const canContinue =
     locationChoice === "map" || (locationChoice === "device" && deviceLocation != null && !loadingGeo);
+
+  const otherServices =
+    lead.externalBankNames.length > 0 ? lead.externalBankNames.join(", ") : "None";
 
   return (
     <Card>
@@ -83,15 +195,79 @@ export function VerifyStep({ leadId, lead, onContinue, onSaveProgress, saving }:
         <CardTitle>Verify business details</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        <p>
-          <strong>Business Name:</strong> {lead.businessName}
-        </p>
-        <p>
-          <strong>Category:</strong> {lead.category}
-        </p>
-        <p>
-          <strong>Zone:</strong> {lead.zone?.code ?? "—"}
-        </p>
+        {lead.photoUrl && (
+          <div>
+            {photoFullscreen && (
+              <ImageFullscreen
+                src={lead.photoUrl}
+                alt={lead.businessName}
+                caption={lead.businessName}
+                onClose={() => setPhotoFullscreen(false)}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => setPhotoFullscreen(true)}
+              className="cursor-zoom-in w-full rounded-lg border border-border transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <img
+                src={lead.photoUrl}
+                alt={lead.businessName}
+                className="h-32 w-full rounded-lg object-cover"
+              />
+            </button>
+          </div>
+        )}
+
+        <div className="rounded-md border border-border bg-muted/30 p-3">
+          <DetailRow label="Business name" value={lead.businessName} />
+          <DetailRow label="Category" value={lead.category} />
+          <DetailRow label="Zone" value={lead.zone?.code ?? "—"} />
+          <DetailRow label="Estimated volume" value={formatVolume(lead.estimatedVolume)} />
+          <DetailRow
+            label="Coordinates"
+            value={`${lead.locationLat.toFixed(5)}, ${lead.locationLng.toFixed(5)}`}
+          />
+          <DetailRow label="Other services used" value={otherServices} />
+          <DetailRow label="Scouted by" value={lead.scoutedByName} />
+          <DetailRow label="Scout date" value={lead.scoutedAt} />
+          {lead.taskReportType && (
+            <DetailRow label="Mission report type" value={lead.taskReportType} />
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <p className="font-medium text-foreground">Lead note</p>
+          <p className="text-muted-foreground text-xs">
+            Save context about this merchant for later.
+          </p>
+          <Textarea
+            value={note}
+            onChange={(e) => {
+              setNote(e.target.value);
+              setNoteSaved(false);
+            }}
+            placeholder="Add a lead or note about this merchant…"
+            className="min-h-24"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSaveNote}
+              disabled={noteSaving || submitting || saving}
+            >
+              {noteSaving ? "Saving…" : "Save note"}
+            </Button>
+            {noteSaved && (
+              <span className="text-xs text-muted-foreground">Note saved</span>
+            )}
+          </div>
+          {noteError && (
+            <p className="text-destructive text-xs">{noteError}</p>
+          )}
+        </div>
 
         <div className="space-y-3">
           <p className="font-medium text-foreground">Where should we record this merchant&apos;s location?</p>
@@ -162,7 +338,7 @@ export function VerifyStep({ leadId, lead, onContinue, onSaveProgress, saving }:
           type="button"
           onClick={handleContinue}
           className="min-h-[44px] w-full"
-          disabled={!canContinue || submitting}
+          disabled={!canContinue || submitting || noteSaving}
         >
           {submitting ? "Saving…" : "Looks good, continue"}
         </Button>
@@ -171,8 +347,8 @@ export function VerifyStep({ leadId, lead, onContinue, onSaveProgress, saving }:
             type="button"
             variant="outline"
             className="min-h-[44px] w-full"
-            onClick={() => onSaveProgress()}
-            disabled={saving}
+            onClick={handleSaveProgress}
+            disabled={saving || submitting || noteSaving}
           >
             {saving ? "Saving…" : "Save and continue later"}
           </Button>
