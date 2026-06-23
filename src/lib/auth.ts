@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
+import { SESSION_IDLE_TIMEOUT_SECONDS } from "@/lib/session-config";
 
 export type Role = "PLAYER" | "BRANCH_MANAGER" | "ADMIN";
 
@@ -19,8 +20,8 @@ export type AuthSession = {
 };
 
 const AUTH_COOKIE_NAME = "mn_token";
-/** Session expires 5 minutes after last activity (idle timeout). */
-const IDLE_TIMEOUT_SECONDS = 5 * 60;
+/** @deprecated Use SESSION_IDLE_TIMEOUT_SECONDS from session-config */
+const IDLE_TIMEOUT_SECONDS = SESSION_IDLE_TIMEOUT_SECONDS;
 
 function resolveAuthSecret(): string | null {
   return process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || null;

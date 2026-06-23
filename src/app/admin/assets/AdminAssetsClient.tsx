@@ -18,11 +18,12 @@ import {
 } from "@/components/ui/table";
 import { DeploymentAssetForm } from "@/components/forms/deployment-asset-form";
 import {
+  deleteDeploymentAsset,
   getDeploymentAssetsForAdmin,
   getDeploymentAssetById,
   type DeploymentAssetRow,
 } from "@/app/actions/deployment-assets";
-import { PencilIcon } from "lucide-react";
+import { PencilIcon, Trash2Icon } from "lucide-react";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
 
 type AdminAssetsClientProps = {
@@ -78,6 +79,23 @@ export function AdminAssetsClient({ initialAssets }: AdminAssetsClientProps) {
     refetch();
   };
 
+  const handleDelete = async (id: string, displayName: string) => {
+    if (
+      !confirm(
+        `Delete deployment asset "${displayName}"? Any merchant links to this asset will also be removed.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await deleteDeploymentAsset(id);
+      if (editingId === id) closeDialog();
+      await refetch();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to delete deployment asset");
+    }
+  };
+
   const isEditMode = Boolean(editingId);
   const showForm = !isEditMode || (editLoaded && editingAsset !== null);
   const showNotFound = isEditMode && editLoaded && editingAsset === null;
@@ -131,16 +149,28 @@ export function AdminAssetsClient({ initialAssets }: AdminAssetsClientProps) {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="bg-blue-600 font-mono text-white hover:bg-blue-700 hover:text-white"
-                      onClick={() => openEdit(asset.id)}
-                      aria-label={`Edit ${asset.displayName}`}
-                    >
-                      <PencilIcon className="size-4 mr-1" />
-                      Edit
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-blue-600 font-mono text-white hover:bg-blue-700 hover:text-white"
+                        onClick={() => openEdit(asset.id)}
+                        aria-label={`Edit ${asset.displayName}`}
+                      >
+                        <PencilIcon className="size-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="font-mono text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(asset.id, asset.displayName)}
+                        aria-label={`Delete ${asset.displayName}`}
+                      >
+                        <Trash2Icon className="mr-1 size-4" />
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

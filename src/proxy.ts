@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifyTokenForEdge, createTokenForEdge } from "@/lib/jwt";
+import { SESSION_IDLE_TIMEOUT_SECONDS } from "@/lib/session-config";
 
 const AUTH_COOKIE_NAME = "mn_token";
-const IDLE_MAX_AGE_SECONDS = 5 * 60;
 
 const secureCookie =
   process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
@@ -53,7 +53,7 @@ async function attachRefreshedSessionCookie(
       path: "/",
       sameSite: "lax",
       secure: secureCookie,
-      maxAge: IDLE_MAX_AGE_SECONDS,
+      maxAge: SESSION_IDLE_TIMEOUT_SECONDS,
     });
   } catch {
     // ignore

@@ -177,3 +177,22 @@ export async function getDeploymentAssetById(id: string): Promise<DeploymentAsse
     updatedAt: asset.updatedAt,
   };
 }
+
+/** Delete a deployment asset. ADMIN only. Removes merchant links (cascade). */
+export async function deleteDeploymentAsset(id: string): Promise<void> {
+  const session = await authorize(["ADMIN"], "deleteDeploymentAsset");
+  const existing = await prisma.deploymentAsset.findUnique({ where: { id } });
+  if (!existing) throw new Error("Deployment asset not found.");
+
+  await prisma.deploymentAsset.delete({ where: { id } });
+
+  const actor = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { name: true },
+  });
+  await logActivity(session, actor?.name ?? "Admin", "DEPLOYMENT_ASSET_DELETE", {
+    entityType: "DeploymentAsset",
+    entityId: id,
+    metadata: { name: existing.name, displayName: existing.displayName },
+  });
+}

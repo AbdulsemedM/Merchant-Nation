@@ -1,9 +1,7 @@
 import { jwtVerify, SignJWT } from "jose";
+import { SESSION_IDLE_TIMEOUT_SECONDS } from "@/lib/session-config";
 
 export type Role = "PLAYER" | "BRANCH_MANAGER" | "ADMIN";
-
-/** Session expires 5 minutes after last activity (must match auth.ts). */
-const IDLE_TIMEOUT_SECONDS = 5 * 60;
 
 function resolveAuthSecret(): string | null {
   return process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || null;
@@ -30,7 +28,7 @@ export async function verifyTokenForEdge(token: string): Promise<JWTPayload | nu
     const lastActivity = payload.lastActivity as number | undefined;
     if (typeof lastActivity === "number") {
       const now = Math.floor(Date.now() / 1000);
-      if (now > lastActivity + IDLE_TIMEOUT_SECONDS) return null;
+      if (now > lastActivity + SESSION_IDLE_TIMEOUT_SECONDS) return null;
     }
     return {
       id: sub,
@@ -57,7 +55,7 @@ export async function createTokenForEdge(payload: JWTPayload): Promise<string> {
   })
     .setSubject(payload.id)
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime(now + IDLE_TIMEOUT_SECONDS)
+    .setExpirationTime(now + SESSION_IDLE_TIMEOUT_SECONDS)
     .setIssuedAt(now)
     .sign(encoded);
 }
