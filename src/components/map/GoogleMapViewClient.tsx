@@ -34,6 +34,7 @@ import { PlayerCellDrawer } from "./PlayerCellDrawer";
 import {
   MapOverlay,
   DEFAULT_INFRASTRUCTURE_LAYERS,
+  DEFAULT_MERCHANT_PIN_LAYERS,
   type InfrastructureLayerVisibility,
 } from "./MapOverlay";
 import { useUserRole } from "@/contexts/UserRoleContext";
@@ -290,6 +291,7 @@ export function GoogleMapViewClient({
   >(null);
   const [infrastructureLayers, setInfrastructureLayers] =
     useState<InfrastructureLayerVisibility>(DEFAULT_INFRASTRUCTURE_LAYERS);
+  const [merchantPinLayers, setMerchantPinLayers] = useState(DEFAULT_MERCHANT_PIN_LAYERS);
   const [showNeighbors, setShowNeighbors] = useState(true);
   const [selectedPin, setSelectedPin] = useState<SelectedMapPin | null>(null);
   const [merchantDetailForPin, setMerchantDetailForPin] = useState<MerchantDetail | null>(null);
@@ -792,7 +794,8 @@ export function GoogleMapViewClient({
           )}
           {mapPins && (
             <>
-              {spreadScouted.map(({ pin: lead, lat, lng }) => (
+              {merchantPinLayers.scouted &&
+                spreadScouted.map(({ pin: lead, lat, lng }) => (
                 <Marker
                   key={`scouted-${lead.id}`}
                   position={{ lat, lng }}
@@ -812,7 +815,8 @@ export function GoogleMapViewClient({
                   title={lead.businessName}
                 />
               ))}
-              {spreadInducted.map(({ pin: m, lat, lng }) => (
+              {merchantPinLayers.inducted &&
+                spreadInducted.map(({ pin: m, lat, lng }) => (
                 <Marker
                   key={`inducted-${m.id}`}
                   position={{ lat, lng }}
@@ -856,6 +860,9 @@ export function GoogleMapViewClient({
           showNeighbors={showNeighbors}
           onShowNeighborsChange={setShowNeighbors}
           hasNeighborTerritories={neighborTerritories.length > 0 && adminTerritories.length === 0}
+          merchantPinLayers={merchantPinLayers}
+          onMerchantPinLayersChange={setMerchantPinLayers}
+          showMerchantPinFilters={showPins}
         />
         <MyLocationButton onCenter={centerOnUser} />
 

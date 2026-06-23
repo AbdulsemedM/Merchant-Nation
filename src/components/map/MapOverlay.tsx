@@ -19,6 +19,21 @@ export const DEFAULT_INFRASTRUCTURE_LAYERS: InfrastructureLayerVisibility = {
   pos: false, // POS layer disabled for now
 };
 
+export type MerchantPinVisibility = {
+  scouted: boolean;
+  inducted: boolean;
+};
+
+export const DEFAULT_MERCHANT_PIN_LAYERS: MerchantPinVisibility = {
+  scouted: true,
+  inducted: true,
+};
+
+const MERCHANT_PIN_COLORS = {
+  scouted: "#3b82f6",
+  inducted: "#22c55e",
+} as const;
+
 export interface MapOverlayProps {
   zoneCount: number;
   merchantCount: number;
@@ -46,6 +61,9 @@ export interface MapOverlayProps {
   showNeighbors?: boolean;
   onShowNeighborsChange?: (show: boolean) => void;
   hasNeighborTerritories?: boolean;
+  merchantPinLayers?: MerchantPinVisibility;
+  onMerchantPinLayersChange?: (next: MerchantPinVisibility) => void;
+  showMerchantPinFilters?: boolean;
 }
 
 export function MapOverlay({
@@ -67,6 +85,9 @@ export function MapOverlay({
   showNeighbors = true,
   onShowNeighborsChange,
   hasNeighborTerritories = false,
+  merchantPinLayers = DEFAULT_MERCHANT_PIN_LAYERS,
+  onMerchantPinLayersChange,
+  showMerchantPinFilters = false,
 }: MapOverlayProps) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -90,6 +111,17 @@ export function MapOverlay({
       });
     },
     [infrastructureLayers, onInfrastructureLayersChange]
+  );
+
+  const toggleMerchantPinLayer = useCallback(
+    (key: keyof MerchantPinVisibility) => {
+      if (!onMerchantPinLayersChange) return;
+      onMerchantPinLayersChange({
+        ...merchantPinLayers,
+        [key]: !merchantPinLayers[key],
+      });
+    },
+    [merchantPinLayers, onMerchantPinLayersChange]
   );
 
   const toggleFullscreen = useCallback(() => {
@@ -221,6 +253,39 @@ export function MapOverlay({
                       </label>
                     </>
                   )}
+                  {showMerchantPinFilters && onMerchantPinLayersChange && (
+                    <>
+                      <p className="mb-2 mt-2 font-mono text-xs font-semibold text-foreground">
+                        Merchants
+                      </p>
+                      <label className="flex cursor-pointer items-center gap-2 py-1 font-mono text-xs">
+                        <input
+                          type="checkbox"
+                          checked={merchantPinLayers.scouted}
+                          onChange={() => toggleMerchantPinLayer("scouted")}
+                          className="h-3.5 w-3.5 rounded border-border"
+                        />
+                        <span
+                          className="inline-block size-3 shrink-0 rounded-full border border-border"
+                          style={{ backgroundColor: MERCHANT_PIN_COLORS.scouted }}
+                        />
+                        Scouted
+                      </label>
+                      <label className="mb-2 flex cursor-pointer items-center gap-2 py-1 font-mono text-xs">
+                        <input
+                          type="checkbox"
+                          checked={merchantPinLayers.inducted}
+                          onChange={() => toggleMerchantPinLayer("inducted")}
+                          className="h-3.5 w-3.5 rounded border-border"
+                        />
+                        <span
+                          className="inline-block size-3 shrink-0 rounded-full border border-border"
+                          style={{ backgroundColor: MERCHANT_PIN_COLORS.inducted }}
+                        />
+                        Inducted
+                      </label>
+                    </>
+                  )}
                   <p className="mb-2 font-mono text-xs font-semibold text-foreground">
                     Show zones
                   </p>
@@ -301,36 +366,29 @@ export function MapOverlay({
 
       {/* Bottom legend */}
       <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 bg-gradient-to-t from-background/95 to-transparent px-4 pb-3 pt-6">
-        {hasInfrastructure && (
-          <>
-            <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-              <Landmark className="size-3.5 shrink-0 text-amber-700" aria-hidden />
-              <span>Branch</span>
-            </div>
-            {/* POS legend hidden for now
-            <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-              <span
-                className="size-3.5 shrink-0 rounded-full border border-border"
-                style={{ backgroundColor: "#8b5cf6" }}
-              />
-              <span>POS</span>
-            </div>
-            */}
-            <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-              <span
-                className="size-3.5 shrink-0 rounded-full border border-border"
-                style={{ backgroundColor: "#3b82f6" }}
-              />
-              <span>Scouted</span>
-            </div>
-            <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-              <span
-                className="size-3.5 shrink-0 rounded-full border border-border"
-                style={{ backgroundColor: "#22c55e" }}
-              />
-              <span>Inducted</span>
-            </div>
-          </>
+        {hasInfrastructure && infrastructureLayers.branches && (
+          <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+            <Landmark className="size-3.5 shrink-0 text-amber-700" aria-hidden />
+            <span>Branch</span>
+          </div>
+        )}
+        {showMerchantPinFilters && merchantPinLayers.scouted && (
+          <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+            <span
+              className="size-3.5 shrink-0 rounded-full border border-border"
+              style={{ backgroundColor: MERCHANT_PIN_COLORS.scouted }}
+            />
+            <span>Scouted</span>
+          </div>
+        )}
+        {showMerchantPinFilters && merchantPinLayers.inducted && (
+          <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+            <span
+              className="size-3.5 shrink-0 rounded-full border border-border"
+              style={{ backgroundColor: MERCHANT_PIN_COLORS.inducted }}
+            />
+            <span>Inducted</span>
+          </div>
         )}
         {hasNeighborTerritories && (
           <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
