@@ -196,12 +196,14 @@ function MapClickCapture({
 function AdminTerritoryContent({
   adminTerritories,
   onCellClick,
+  visibleStatuses,
 }: {
   adminTerritories: AdminBranchTerritory[];
   onCellClick: (
     cell: TerritoryCellWithBranchName,
     tapPosition?: { lat: number; lng: number }
   ) => void;
+  visibleStatuses: Set<MapZoneStatus>;
 }) {
   return (
     <>
@@ -220,6 +222,7 @@ function AdminTerritoryContent({
           )}
           {branch.cells.map((cell) => {
             const status = (cell.status as MapZoneStatus) || "UNSEEN";
+            if (!visibleStatuses.has(status)) return null;
             const fill = ZONE_STATUS_COLORS[status];
             const pos = cell.coordinates.map((p) => [p.lat, p.lng] as [number, number]);
             return (
@@ -256,6 +259,7 @@ function TerritoryContent({
   onCellClick,
   isEditMode = false,
   onVertexDrag,
+  visibleStatuses,
 }: {
   branchTerritory: { lat: number; lng: number }[] | null;
   territoryCells: TerritoryCellWithCoords[];
@@ -267,6 +271,7 @@ function TerritoryContent({
   ) => void;
   isEditMode?: boolean;
   onVertexDrag?: (index: number, point: { lat: number; lng: number }) => void;
+  visibleStatuses: Set<MapZoneStatus>;
 }) {
   const boundaryToShow = boundaryPreview.length >= 3 ? boundaryPreview : branchTerritory;
   const showBoundary = boundaryToShow && boundaryToShow.length >= 3;
@@ -300,6 +305,7 @@ function TerritoryContent({
         ))}
       {territoryCells.map((cell) => {
         const status = (cell.status as MapZoneStatus) || "UNSEEN";
+        if (!visibleStatuses.has(status)) return null;
         const fill = ZONE_STATUS_COLORS[status];
         const pos = cell.coordinates.map((p) => [p.lat, p.lng] as [number, number]);
         return (
@@ -764,6 +770,7 @@ export function MapViewClient({
             <AdminTerritoryContent
               adminTerritories={adminTerritories}
               onCellClick={handleTerritoryCellClick}
+              visibleStatuses={visibleStatuses}
             />
           )}
           {neighborsVisible && (
@@ -787,6 +794,7 @@ export function MapViewClient({
               onCellClick={handleTerritoryCellClick}
               isEditMode={!!inEditBoundaryMode}
               onVertexDrag={inEditBoundaryMode ? handleVertexDrag : undefined}
+              visibleStatuses={visibleStatuses}
             />
           )}
           {infrastructurePins && infrastructureLayers.branches && (

@@ -91,12 +91,14 @@ const DEFAULT_MAP_OPTIONS: google.maps.MapOptions = {
 function AdminTerritoryContentGoogle({
   adminTerritories,
   onCellClick,
+  visibleStatuses,
 }: {
   adminTerritories: AdminBranchTerritory[];
   onCellClick: (
     cell: TerritoryCellWithBranchName,
     tapPosition?: { lat: number; lng: number }
   ) => void;
+  visibleStatuses: Set<MapZoneStatus>;
 }) {
   return (
     <>
@@ -116,6 +118,7 @@ function AdminTerritoryContentGoogle({
           )}
           {branch.cells.map((cell) => {
             const status = (cell.status as MapZoneStatus) || "UNSEEN";
+            if (!visibleStatuses.has(status)) return null;
             const fill = ZONE_STATUS_COLORS[status];
             const path = cell.coordinates.map((p) => ({ lat: p.lat, lng: p.lng }));
             return (
@@ -154,6 +157,7 @@ function TerritoryContentGoogle({
   onCellClick,
   isEditMode = false,
   onBoundaryPathChange,
+  visibleStatuses,
 }: {
   branchTerritory: { lat: number; lng: number }[] | null;
   territoryCells: TerritoryCellWithCoords[];
@@ -165,6 +169,7 @@ function TerritoryContentGoogle({
   ) => void;
   isEditMode?: boolean;
   onBoundaryPathChange?: (path: { lat: number; lng: number }[]) => void;
+  visibleStatuses: Set<MapZoneStatus>;
 }) {
   const boundaryToShow = boundaryPreview.length >= 3 ? boundaryPreview : branchTerritory;
   const showBoundary = boundaryToShow && boundaryToShow.length >= 3;
@@ -207,6 +212,7 @@ function TerritoryContentGoogle({
       )}
       {territoryCells.map((cell) => {
         const status = (cell.status as MapZoneStatus) || "UNSEEN";
+        if (!visibleStatuses.has(status)) return null;
         const fill = ZONE_STATUS_COLORS[status];
         const path = cell.coordinates.map((p) => ({ lat: p.lat, lng: p.lng }));
         return (
@@ -695,6 +701,7 @@ export function GoogleMapViewClient({
             <AdminTerritoryContentGoogle
               adminTerritories={adminTerritories}
               onCellClick={handleTerritoryCellClick}
+              visibleStatuses={visibleStatuses}
             />
           )}
           {neighborsVisible && (
@@ -718,6 +725,7 @@ export function GoogleMapViewClient({
               onCellClick={handleTerritoryCellClick}
               isEditMode={!!inEditBoundaryMode}
               onBoundaryPathChange={inEditBoundaryMode ? setBoundaryPoints : undefined}
+              visibleStatuses={visibleStatuses}
             />
           )}
           {!userLocation && adminTerritories.length === 0 && fitBoundsPoints.length >= 2 && (

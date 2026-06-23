@@ -161,11 +161,11 @@ export function MapOverlay({
             {filterOpen && (
               <>
                 <div
-                  className="fixed inset-0 z-0"
+                  className="fixed inset-0 z-[1000]"
                   aria-hidden
                   onClick={() => setFilterOpen(false)}
                 />
-                <div className="absolute right-0 top-full z-10 mt-1 w-52 rounded-md border border-border bg-card p-2 shadow-lg">
+                <div className="absolute right-0 top-full z-[1001] mt-1 w-52 rounded-md border border-border bg-card p-2 shadow-lg">
                   {hasInfrastructure && onInfrastructureLayersChange && (
                     <>
                       <p className="mb-2 font-mono text-xs font-semibold text-foreground">
@@ -260,11 +260,11 @@ export function MapOverlay({
               {layersOpen && (
                 <>
                   <div
-                    className="fixed inset-0 z-0"
+                    className="fixed inset-0 z-[1000]"
                     aria-hidden
                     onClick={() => setLayersOpen(false)}
                   />
-                  <div className="absolute right-0 top-full z-10 mt-1 w-36 rounded-md border border-border bg-card p-2 shadow-lg">
+                  <div className="absolute right-0 top-full z-[1001] mt-1 w-36 rounded-md border border-border bg-card p-2 shadow-lg">
                     {(["roadmap", "satellite"] as const).map((type) => (
                       <button
                         key={type}
@@ -341,7 +341,7 @@ export function MapOverlay({
             <span>Neighboring territory (view only)</span>
           </div>
         )}
-        {ZONE_STATUS_LABELS.map((status) => (
+        {ZONE_STATUS_LABELS.filter((status) => visibleStatuses.has(status)).map((status) => (
           <div
             key={status}
             className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground"
