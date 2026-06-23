@@ -79,7 +79,9 @@ export default async function ProfilePage() {
       }),
       isAdmin
         ? Promise.resolve([])
-        : getLeaderboard(50, null),
+        : branchIdForLeaderboard
+          ? getLeaderboard(50, branchIdForLeaderboard)
+          : Promise.resolve([]),
       getContributionActivityData(365),
       getGamificationData(),
     ]);

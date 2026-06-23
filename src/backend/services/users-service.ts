@@ -109,10 +109,21 @@ export async function getProfileStats(userId: string, options: { branchId?: stri
 
 export async function getLeaderboard(limit = 20, branchId?: string | null) {
   try {
-    const where = branchId
+    const session = await getServerAuthSession();
+    if (!session) return [];
+
+    let effectiveBranchId = branchId ?? null;
+    if (session.role === "BRANCH_MANAGER" || session.role === "PLAYER") {
+      const self = await getCurrentUser(session.id);
+      effectiveBranchId =
+        session.branchId ?? self?.branchId ?? self?.team?.branchId ?? null;
+      if (!effectiveBranchId) return [];
+    }
+
+    const where = effectiveBranchId
       ? {
           role: "PLAYER" as Role,
-          OR: [{ branchId }, { team: { branchId } }],
+          OR: [{ branchId: effectiveBranchId }, { team: { branchId: effectiveBranchId } }],
         }
       : { role: "PLAYER" as Role };
 
