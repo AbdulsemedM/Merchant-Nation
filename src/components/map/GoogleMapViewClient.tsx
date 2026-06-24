@@ -19,6 +19,7 @@ import {
 import { useStoredUserLocation } from "@/hooks/useStoredUserLocation";
 import { MyLocationButton } from "@/components/map/MyLocationButton";
 import { normalizeTerritoryPoints } from "@/lib/territoryGrid";
+import { resolveZoneIdForCell } from "@/lib/zoneCode";
 import { getZones, updateZoneStatus, type ZoneWithStats } from "@/app/actions/zones";
 import { ZONE_STATUS_COLORS, ZONE_STATUS_LABELS, type MapZoneStatus } from "@/lib/zoneStatusColors";
 import {
@@ -521,7 +522,7 @@ export function GoogleMapViewClient({
 
   const zoneIdForSelectedCell =
     selectedTerritoryCell && zones.length > 0
-      ? zones.find((z) => z.code === selectedTerritoryCell.code)?.id ?? null
+      ? resolveZoneIdForCell(zones, branchId, selectedTerritoryCell.code)
       : null;
   const cellCenter =
     selectedTerritoryCell && selectedTerritoryCell.coordinates?.length > 0

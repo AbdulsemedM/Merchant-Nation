@@ -12,6 +12,7 @@ import { checkAndUnlockAchievements } from "@/backend/services/achievement-servi
 import { routeNotification } from "@/backend/services/notification-router-service";
 import { getUserFacingErrorMessage } from "@/lib/errors";
 import { isInductionProductKey } from "@/lib/induction-products";
+import { zoneStorageCode } from "@/lib/zoneCode";
 
 const SCOUT_XP = 20;
 
@@ -69,15 +70,27 @@ export async function scoutZone(input: ScoutZoneInput): Promise<{ ok: boolean; e
 
     let zoneId = input.zoneId;
     if (!zoneId) {
-      const zone = await prisma.zone.create({
-        data: {
-          code: input.zoneCode,
-          coordinates: input.coordinates as object,
-          status: "UNSEEN",
-          ownerId: userId,
-          ...(resolvedBranchId && { branchId: resolvedBranchId }),
-        },
+      const storageCode = zoneStorageCode(resolvedBranchId, input.zoneCode);
+      let zone = await prisma.zone.findFirst({
+        where: resolvedBranchId
+          ? {
+              branchId: resolvedBranchId,
+              OR: [{ code: storageCode }, { code: input.zoneCode }],
+            }
+          : { code: input.zoneCode },
       });
+
+      if (!zone) {
+        zone = await prisma.zone.create({
+          data: {
+            code: storageCode,
+            coordinates: input.coordinates as object,
+            status: "UNSEEN",
+            ownerId: userId,
+            ...(resolvedBranchId && { branchId: resolvedBranchId }),
+          },
+        });
+      }
       zoneId = zone.id;
     } else {
       if (resolvedBranchId) {
@@ -175,7 +188,15 @@ export async function scoutZone(input: ScoutZoneInput): Promise<{ ok: boolean; e
     return { ok: true, unlockedBadges };
   } catch (e) {
     console.error("scoutZone error", e);
-    return { ok: false, error: getUserFacingErrorMessage(e, "Scout failed. Please try again.") };
+    const message = getUserFacingErrorMessage(e, "Scout failed. Please try again.");
+    if (message === "That value is already in use. Please try a different one.") {
+      return {
+        ok: false,
+        error:
+          "This map block is already registered under another branch. Try scouting again or contact your branch manager.",
+      };
+    }
+    return { ok: false, error: message };
   }
 }
 
