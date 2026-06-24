@@ -5,6 +5,11 @@ import { getServerAuthSession, authorize } from "@/lib/auth";
 import { getCurrentUser } from "@/backend/services/users-service";
 import { getRanks } from "@/backend/services/ranks-service";
 import { logActivity } from "@/backend/services/activity-log-service";
+import {
+  isNationalIdDuplicateError,
+  nationalIdDuplicateMessage,
+  validateNationalId,
+} from "@/lib/merchantIdentity";
 
 const XP_INDUCT = 100;
 const XP_CAPTURE_ZONE = 500;
@@ -39,7 +44,7 @@ function generateCitizenNumber(): string {
 export type UpdateMerchantKYCInput = {
   leadId: string;
   ownerName: string;
-  nationalIdNumber?: string;
+  nationalIdNumber: string;
   tradeLicenseNumber?: string;
   tinNumber?: string;
   phoneNumber: string;
@@ -61,6 +66,18 @@ export async function updateMerchantProductsAndKYC(
     if (!lead) return { ok: false, error: "Lead not found" };
     if (lead.status === "CONVERTED") return { ok: false, error: "Lead already converted" };
 
+    const nationalIdResult = validateNationalId(input.nationalIdNumber);
+    if (!nationalIdResult.ok) return { ok: false, error: nationalIdResult.error };
+    const normalizedNationalId = nationalIdResult.value;
+
+    const duplicate = await prisma.merchant.findFirst({
+      where: {
+        nationalIdNumber: normalizedNationalId,
+        ...(lead.merchant ? { id: { not: lead.merchant.id } } : {}),
+      },
+    });
+    if (duplicate) return { ok: false, error: nationalIdDuplicateMessage };
+
     const placeholderSignature = "";
     const citizenNumber = lead.merchant?.citizenNumber ?? "MN-PENDING-" + lead.id.slice(0, 8);
 
@@ -69,7 +86,7 @@ export async function updateMerchantProductsAndKYC(
         where: { id: lead.merchant.id },
         data: {
           ownerName: input.ownerName.trim(),
-          nationalIdNumber: input.nationalIdNumber?.trim() ?? null,
+          nationalIdNumber: normalizedNationalId,
           tradeLicenseNumber: input.tradeLicenseNumber?.trim() ?? null,
           tinNumber: input.tinNumber?.trim() ?? null,
           phoneNumber: input.phoneNumber.trim(),
@@ -82,7 +99,7 @@ export async function updateMerchantProductsAndKYC(
         data: {
           leadId: input.leadId,
           ownerName: input.ownerName.trim(),
-          nationalIdNumber: input.nationalIdNumber?.trim() ?? null,
+          nationalIdNumber: normalizedNationalId,
           tradeLicenseNumber: input.tradeLicenseNumber?.trim() ?? null,
           tinNumber: input.tinNumber?.trim() ?? null,
           phoneNumber: input.phoneNumber.trim(),
@@ -99,6 +116,9 @@ export async function updateMerchantProductsAndKYC(
     return { ok: true };
   } catch (e) {
     console.error("updateMerchantProductsAndKYC error", e);
+    if (isNationalIdDuplicateError(e)) {
+      return { ok: false, error: nationalIdDuplicateMessage };
+    }
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Failed to save KYC",
@@ -126,6 +146,11 @@ export async function completeInduction(
     if (!lead) return { ok: false, error: "Lead not found" };
     if (lead.status === "CONVERTED") return { ok: false, error: "Lead already converted" };
     if (!lead.merchant) return { ok: false, error: "Complete KYC step first" };
+
+    const existingNationalId = lead.merchant.nationalIdNumber?.trim();
+    if (!existingNationalId) {
+      return { ok: false, error: "National ID is required before completing induction." };
+    }
 
     const citizenNumber =
       lead.merchant.citizenNumber.startsWith("MN-PENDING-")
@@ -204,7 +229,7 @@ export async function completeInduction(
 export type InductMerchantInput = {
   leadId: string;
   ownerName: string;
-  nationalIdNumber?: string;
+  nationalIdNumber: string;
   tradeLicenseNumber?: string;
   tinNumber?: string;
   phoneNumber: string;
@@ -318,7 +343,7 @@ export async function getMerchantsByBranch(filters: MerchantsByBranchFilters): P
 export type MerchantDetail = {
   id: string;
   ownerName: string;
-  nationalIdNumber: string | null;
+  nationalIdNumber: string;
   tradeLicenseNumber: string | null;
   tinNumber: string | null;
   phoneNumber: string;
@@ -415,7 +440,7 @@ export async function getMerchantDetail(merchantId: string): Promise<MerchantDet
   return {
     id: merchant.id,
     ownerName: merchant.ownerName,
-    nationalIdNumber: merchant.nationalIdNumber ?? null,
+    nationalIdNumber: merchant.nationalIdNumber,
     tradeLicenseNumber: merchant.tradeLicenseNumber ?? null,
     tinNumber: merchant.tinNumber ?? null,
     phoneNumber: merchant.phoneNumber,
@@ -452,7 +477,7 @@ export async function getMerchantDetail(merchantId: string): Promise<MerchantDet
 
 export type UpdateMerchantDetailsInput = {
   ownerName: string;
-  nationalIdNumber?: string | null;
+  nationalIdNumber: string;
   tradeLicenseNumber?: string | null;
   tinNumber?: string | null;
   phoneNumber: string;
@@ -476,11 +501,23 @@ export async function updateMerchantDetails(
       }
     }
 
+    const nationalIdResult = validateNationalId(data.nationalIdNumber);
+    if (!nationalIdResult.ok) return { ok: false, error: nationalIdResult.error };
+    const normalizedNationalId = nationalIdResult.value;
+
+    const duplicate = await prisma.merchant.findFirst({
+      where: {
+        nationalIdNumber: normalizedNationalId,
+        id: { not: merchantId },
+      },
+    });
+    if (duplicate) return { ok: false, error: nationalIdDuplicateMessage };
+
     await prisma.merchant.update({
       where: { id: merchantId },
       data: {
         ownerName: data.ownerName.trim(),
-        nationalIdNumber: data.nationalIdNumber?.trim() ?? null,
+        nationalIdNumber: normalizedNationalId,
         tradeLicenseNumber: data.tradeLicenseNumber?.trim() ?? null,
         tinNumber: data.tinNumber?.trim() ?? null,
         phoneNumber: data.phoneNumber.trim(),
@@ -528,6 +565,9 @@ export async function updateMerchantDetails(
     return { ok: true };
   } catch (e) {
     console.error("updateMerchantDetails error", e);
+    if (isNationalIdDuplicateError(e)) {
+      return { ok: false, error: nationalIdDuplicateMessage };
+    }
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Failed to update merchant",

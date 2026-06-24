@@ -14,11 +14,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { normalizeNationalId } from "@/lib/merchantIdentity";
 
 const PHONE_PREFIX = "+251";
 
 const kycProductsSchema = z.object({
   ownerName: z.string().min(1, "Owner name is required"),
+  nationalIdNumber: z
+    .string()
+    .min(1, "National ID is required")
+    .transform(normalizeNationalId)
+    .refine((value) => value.length > 0, "National ID is required"),
   tradeLicenseNumber: z.string().optional(),
   tinNumber: z.string().optional(),
   phoneNumber: z
@@ -53,6 +59,7 @@ export function KycProductsStep({
     resolver: zodResolver(kycProductsSchema),
     defaultValues: {
       ownerName: "",
+      nationalIdNumber: "",
       tradeLicenseNumber: "",
       tinNumber: "",
       phoneNumber: PHONE_PREFIX,
@@ -86,6 +93,23 @@ export function KycProductsStep({
                   <FormLabel>Owner&apos;s Full Name</FormLabel>
                   <FormControl>
                     <Input className="min-h-[44px]" placeholder="Full name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="nationalIdNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>National ID</FormLabel>
+                  <FormControl>
+                    <Input
+                      className="min-h-[44px]"
+                      placeholder="National ID number"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

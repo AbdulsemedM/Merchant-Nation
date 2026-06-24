@@ -131,7 +131,7 @@ model Merchant {
   phoneNumber           String
   onboardingDate        DateTime                  @default(now())
   ownerName             String
-  nationalIdNumber      String?
+  nationalIdNumber      String                    @unique
   tradeLicenseNumber    String?
   merchantAccountNumber String
   oathSignatureUrl      String

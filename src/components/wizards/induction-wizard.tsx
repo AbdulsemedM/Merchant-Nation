@@ -65,6 +65,7 @@ export function InductionWizard({ lead, initialStep = 0, initialKycValues }: Ind
     const result = await updateMerchantProductsAndKYC({
       leadId: lead.id,
       ownerName: data.ownerName,
+      nationalIdNumber: data.nationalIdNumber,
       tradeLicenseNumber: data.tradeLicenseNumber ?? "",
       tinNumber: data.tinNumber ?? "",
       phoneNumber: data.phoneNumber,

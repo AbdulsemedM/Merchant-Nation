@@ -57,6 +57,7 @@ export default async function InductPage({
   let initialStep = 0;
   let initialKycValues: Partial<{
     ownerName: string;
+    nationalIdNumber: string;
     tradeLicenseNumber: string;
     tinNumber: string;
     phoneNumber: string;
@@ -67,6 +68,7 @@ export default async function InductPage({
     initialStep = 2;
     initialKycValues = {
       ownerName: lead.merchant.ownerName,
+      nationalIdNumber: lead.merchant.nationalIdNumber,
       tradeLicenseNumber: lead.merchant.tradeLicenseNumber ?? "",
       tinNumber: lead.merchant.tinNumber ?? "",
       phoneNumber: lead.merchant.phoneNumber,

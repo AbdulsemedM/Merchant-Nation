@@ -28,6 +28,7 @@ import {
 import { getDeploymentAssets } from "@/app/actions/deployment-assets";
 import type { DeploymentAssetRow } from "@/app/actions/deployment-assets";
 import { MerchantDetailView } from "@/components/merchant-detail/MerchantDetailView";
+import { validateNationalId } from "@/lib/merchantIdentity";
 import { cn } from "@/lib/utils";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
 
@@ -479,6 +480,7 @@ function MerchantEditForm({
     () => detail.deploymentAssets?.map((a) => a.id) ?? []
   );
   const [availableAssets, setAvailableAssets] = useState<DeploymentAssetRow[]>([]);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     getDeploymentAssets().then((list) => setAvailableAssets(list));
@@ -496,9 +498,15 @@ function MerchantEditForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const nationalIdResult = validateNationalId(nationalIdNumber);
+    if (!nationalIdResult.ok) {
+      setValidationError(nationalIdResult.error);
+      return;
+    }
+    setValidationError(null);
     onSave({
       ownerName,
-      nationalIdNumber: nationalIdNumber || undefined,
+      nationalIdNumber: nationalIdResult.value,
       tradeLicenseNumber: tradeLicenseNumber || undefined,
       tinNumber: tinNumber || undefined,
       phoneNumber,
@@ -531,14 +539,24 @@ function MerchantEditForm({
           {saveError}
         </p>
       )}
+      {validationError && (
+        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 font-mono text-xs text-destructive">
+          {validationError}
+        </p>
+      )}
       <div className="grid gap-3 font-mono text-sm">
         <label className="grid gap-1">
           <span className="text-muted-foreground">Owner name</span>
           <Input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} required className="font-mono" />
         </label>
         <label className="grid gap-1">
-          <span className="text-muted-foreground">National ID (optional)</span>
-          <Input value={nationalIdNumber} onChange={(e) => setNationalIdNumber(e.target.value)} className="font-mono" />
+          <span className="text-muted-foreground">National ID</span>
+          <Input
+            value={nationalIdNumber}
+            onChange={(e) => setNationalIdNumber(e.target.value)}
+            required
+            className="font-mono"
+          />
         </label>
         <label className="grid gap-1">
           <span className="text-muted-foreground">Trade license (optional)</span>
