@@ -19,7 +19,7 @@ export async function getInductionDraft(leadId: string): Promise<{
   kycFormData: KycFormDraft | null;
 } | null> {
   try {
-    const session = await authorize(["BRANCH_MANAGER", "PLAYER"], "getInductionDraft");
+    const session = await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "getInductionDraft");
     const draft = await prisma.inductionDraft.findUnique({
       where: { leadId_userId: { leadId, userId: session.id } },
     });
@@ -40,7 +40,7 @@ export async function saveInductionDraft(
   kycFormData?: KycFormDraft | null
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const session = await authorize(["BRANCH_MANAGER", "PLAYER"], "saveInductionDraft");
+    const session = await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "saveInductionDraft");
     await prisma.inductionDraft.upsert({
       where: { leadId_userId: { leadId, userId: session.id } },
       create: {
@@ -69,7 +69,7 @@ export async function saveInductionDraft(
 /** Clear draft after induction is completed or when starting fresh. */
 export async function clearInductionDraft(leadId: string): Promise<void> {
   try {
-    const session = await authorize(["BRANCH_MANAGER", "PLAYER"], "clearInductionDraft");
+    const session = await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "clearInductionDraft");
     await prisma.inductionDraft.deleteMany({
       where: { leadId, userId: session.id },
     });

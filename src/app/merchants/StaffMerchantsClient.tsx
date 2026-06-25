@@ -56,7 +56,7 @@ type MerchantRow = {
 
 type ViewFilter = "all" | "scouted" | "registered";
 
-type UserRole = "PLAYER" | "BRANCH_MANAGER" | "ADMIN";
+type UserRole = "PLAYER" | "TEAM_LEAD" | "BRANCH_MANAGER" | "ADMIN";
 
 export function StaffMerchantsClient({ branchId, userRole, currentUserId }: { branchId: string; userRole: UserRole; currentUserId?: string }) {
   const [leads, setLeads] = useState<LeadRow[]>([]);
@@ -77,7 +77,9 @@ export function StaffMerchantsClient({ branchId, userRole, currentUserId }: { br
 
   const canEditMerchant =
     userRole === "BRANCH_MANAGER" ||
-    (userRole === "PLAYER" && currentUserId != null && merchantDetail?.inductedBy?.id === currentUserId);
+    ((userRole === "PLAYER" || userRole === "TEAM_LEAD") &&
+      currentUserId != null &&
+      merchantDetail?.inductedBy?.id === currentUserId);
 
   const loadDetail = useCallback(async (merchantId: string) => {
     setDetailLoading(true);

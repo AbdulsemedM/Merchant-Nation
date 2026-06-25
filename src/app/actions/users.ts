@@ -78,3 +78,19 @@ export async function getBranchesForAdmin() {
   return users.getBranchesForAdmin();
 }
 
+export async function transferPlayerBranch(input: usersService.TransferPlayerBranchInput) {
+  try {
+    return await users.transferPlayerBranch(input);
+  } catch (e) {
+    return { ok: false as const, error: getUserFacingErrorMessage(e, "Failed to transfer player.") };
+  }
+}
+
+export async function getTransferBlockers(userId: string) {
+  try {
+    return await users.getTransferBlockers(userId);
+  } catch {
+    return { openTaskCount: 0, ownedZoneCount: 0 };
+  }
+}
+

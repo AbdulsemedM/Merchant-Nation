@@ -8,8 +8,8 @@ import { getNavItems } from "@/lib/nav-items";
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { role } = useUserRole();
-  const navItems = getNavItems(role);
+  const { role, branchPermissions } = useUserRole();
+  const navItems = getNavItems(role, branchPermissions);
 
   return (
     <nav

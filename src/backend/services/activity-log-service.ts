@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { authorize, type AuthSession } from "@/lib/auth";
+import { authorize, authorizeBranchAction, type AuthSession } from "@/lib/auth";
 import * as activityLogRepo from "@/backend/repositories/activity-log-repository";
 
 export type ActivityLogFilters = {
@@ -49,14 +49,14 @@ export async function logActivity(
 export async function getActivityLog(
   filters: ActivityLogFilters
 ): Promise<{ entries: ActivityLogEntry[]; total: number }> {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"], "getActivityLog");
+  const session = await authorizeBranchAction("VIEW_REPORTS", "getActivityLog");
 
   const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
   const offset = Math.max(filters.offset ?? 0, 0);
 
   const where: Prisma.ActivityLogWhereInput = {};
 
-  if (session.role === "BRANCH_MANAGER" && session.branchId) {
+  if ((session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") && session.branchId) {
     where.branchId = session.branchId;
 
     const branchStaffIds = await activityLogRepo.getBranchStaffIds(session.branchId);

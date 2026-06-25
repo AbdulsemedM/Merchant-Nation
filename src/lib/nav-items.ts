@@ -16,6 +16,8 @@ import {
   Medal,
 } from "lucide-react";
 import type { Role } from "@/lib/auth";
+import type { BranchPermission } from "@/lib/branch-permissions";
+import { NAV_HREF_PERMISSION } from "@/lib/branch-permissions";
 
 export type NavItem = {
   href: string;
@@ -57,12 +59,23 @@ const branchManagerNavItems: NavItem[] = [
   { href: "/admin/merchants", label: "Merchants", icon: Store },
 ];
 
+const missionsNavItem: NavItem = { href: "/admin/missions", label: "Missions", icon: ClipboardList };
+
+function filterNavByPermissions(items: NavItem[], permissions: BranchPermission[]): NavItem[] {
+  return items.filter((item) => {
+    const required = NAV_HREF_PERMISSION[item.href];
+    if (!required) return true;
+    return permissions.includes(required);
+  });
+}
+
 /**
- * Returns nav items for the given role. Used by BottomNav (staff) and SidebarLayout (admin/manager).
- * Admin: Dashboard, Missions, Reports, Users, Teams, Branches, Profile.
- * Branch Manager / Staff: Map, Missions, Report, then manager items if any, then Profile.
+ * Returns nav items for the given role. TEAM_LEAD receives a subset based on active grants.
  */
-export function getNavItems(role: Role | null): NavItem[] {
+export function getNavItems(
+  role: Role | null,
+  teamLeadPermissions?: BranchPermission[]
+): NavItem[] {
   if (role === "ADMIN") {
     return [
       ...dashboardItem,
@@ -71,7 +84,15 @@ export function getNavItems(role: Role | null): NavItem[] {
       profileItem,
     ];
   }
-  const adminItems =
-    role === "BRANCH_MANAGER" ? branchManagerNavItems : [];
-  return [...mapBaseNavItems, ...adminItems, profileItem];
+  if (role === "BRANCH_MANAGER") {
+    return [...mapBaseNavItems, ...branchManagerNavItems, profileItem];
+  }
+  if (role === "TEAM_LEAD" && teamLeadPermissions && teamLeadPermissions.length > 0) {
+    const adminItems = filterNavByPermissions(branchManagerNavItems, teamLeadPermissions);
+    const withMissions = teamLeadPermissions.includes("MANAGE_MISSIONS")
+      ? [missionsNavItem, ...adminItems]
+      : adminItems;
+    return [...mapBaseNavItems, ...withMissions, profileItem];
+  }
+  return [...mapBaseNavItems, profileItem];
 }

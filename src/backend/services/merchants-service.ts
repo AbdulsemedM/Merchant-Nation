@@ -56,7 +56,7 @@ export async function updateMerchantProductsAndKYC(
   input: UpdateMerchantKYCInput
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const session = await authorize(["BRANCH_MANAGER", "PLAYER"], "updateMerchantProductsAndKYC");
+    const session = await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "updateMerchantProductsAndKYC");
     const userId = session.id;
 
     const lead = await prisma.lead.findUnique({
@@ -136,7 +136,7 @@ export async function completeInduction(
   input: CompleteInductionInput
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const session = await authorize(["BRANCH_MANAGER", "PLAYER"], "completeInduction");
+    const session = await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "completeInduction");
     const userId = session.id;
 
     const lead = await prisma.lead.findUnique({
@@ -277,7 +277,7 @@ export async function getMerchantsByBranch(filters: MerchantsByBranchFilters): P
   }[];
   total: number;
 }> {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER", "PLAYER"], "getMerchantsByBranch");
+  const session = await authorize(["ADMIN", "BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "getMerchantsByBranch");
   const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
   const offset = Math.max(filters.offset ?? 0, 0);
 
@@ -491,7 +491,7 @@ export async function updateMerchantDetails(
   data: UpdateMerchantDetailsInput
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const session = await authorize(["ADMIN", "BRANCH_MANAGER", "PLAYER"], "updateMerchantDetails");
+    const session = await authorize(["ADMIN", "BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "updateMerchantDetails");
     const detail = await getMerchantDetail(merchantId);
     if (!detail) return { ok: false, error: "Merchant not found or access denied" };
 
@@ -582,7 +582,7 @@ export async function setDeploymentAssetOnboarded(
   onboarded: boolean
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const session = await authorize(["ADMIN", "BRANCH_MANAGER", "PLAYER"], "setDeploymentAssetOnboarded");
+    const session = await authorize(["ADMIN", "BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "setDeploymentAssetOnboarded");
     const detail = await getMerchantDetail(merchantId);
     if (!detail) return { ok: false, error: "Merchant not found or access denied" };
 

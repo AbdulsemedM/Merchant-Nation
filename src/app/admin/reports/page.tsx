@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getServerAuthSession } from "@/lib/auth";
+import { requireAdminPageAccess } from "@/lib/require-admin-page";
 import { getBranchesFromDb } from "@/app/actions/branches";
 import { BranchListNav } from "@/components/admin/BranchListNav";
 import { ReportsClient } from "./ReportsClient";
@@ -11,10 +10,7 @@ export default async function AdminReportsPage({
 }: {
   searchParams: Promise<{ branchId?: string }>;
 }) {
-  const session = await getServerAuthSession();
-  if (!session || (session.role !== "ADMIN" && session.role !== "BRANCH_MANAGER")) {
-    redirect("/");
-  }
+  const session = await requireAdminPageAccess("/admin/reports");
 
   const params = await searchParams;
   const branchIdFromUrl = params.branchId ?? null;

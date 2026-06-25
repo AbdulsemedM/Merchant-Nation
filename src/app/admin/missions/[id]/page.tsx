@@ -1,5 +1,5 @@
-import { redirect, notFound } from "next/navigation";
-import { getServerAuthSession } from "@/lib/auth";
+import { notFound } from "next/navigation";
+import { requireAdminPageAccess } from "@/lib/require-admin-page";
 import { getMissionById } from "@/app/actions/mission";
 import { MissionDetailClient } from "./MissionDetailClient";
 
@@ -12,10 +12,7 @@ export default async function MissionDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ branchId?: string }>;
 }) {
-  const session = await getServerAuthSession();
-  if (!session || (session.role !== "ADMIN" && session.role !== "BRANCH_MANAGER")) {
-    redirect("/");
-  }
+  const session = await requireAdminPageAccess("/admin/missions");
 
   const { id } = await params;
   const { branchId: branchIdFromUrl } = await searchParams;

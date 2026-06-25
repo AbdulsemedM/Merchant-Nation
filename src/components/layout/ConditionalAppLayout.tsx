@@ -9,13 +9,16 @@ import { LocationPromptGate } from "@/components/location/LocationPromptGate";
 
 export function ConditionalAppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { role } = useUserRole();
+  const { role, branchPermissions } = useUserRole();
 
   if (pathname === "/login") {
     return <>{children}</>;
   }
 
-  const useSidebar = role === "ADMIN" || role === "BRANCH_MANAGER";
+  const useSidebar =
+    role === "ADMIN" ||
+    role === "BRANCH_MANAGER" ||
+    (role === "TEAM_LEAD" && branchPermissions.length > 0);
   return (
     <>
       <LocationPromptGate />

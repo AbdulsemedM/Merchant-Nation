@@ -13,7 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getUsersForAdmin, getTeamsForAdmin, getBranchesForAdmin, createUser, updateUserRole, updateUser, resetUserPassword } from "@/app/actions/users";
+import { getUsersForAdmin, getTeamsForAdmin, getBranchesForAdmin, createUser, updateUserRole, updateUser, resetUserPassword, transferPlayerBranch, getTransferBlockers } from "@/app/actions/users";
+import { grantDelegation, revokeDelegation, getDelegationGrantsForUser } from "@/app/actions/delegation";
+import { BRANCH_PERMISSIONS, BRANCH_PERMISSION_LABELS, type BranchPermission } from "@/lib/branch-permissions";
 import type { CreateUserData } from "@/app/actions/users";
 import type { Role } from "@/lib/auth";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
@@ -26,6 +28,8 @@ type UserRow = {
   role: string;
   teamName: string | null;
   branchName: string | null;
+  teamId?: string | null;
+  branchId?: string | null;
 };
 
 type TeamOption = {
@@ -46,12 +50,14 @@ export function AdminUsersClient({
   totalUsers: initialTotal,
   usersLimit = 20,
   callerRole,
+  callerBranchId,
   branchIdFromUrl,
 }: {
   initialUsers: UserRow[];
   totalUsers: number;
   usersLimit?: number;
   callerRole: Role;
+  callerBranchId?: string | null;
   branchIdFromUrl?: string | null;
 }) {
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
@@ -65,6 +71,8 @@ export function AdminUsersClient({
   const [editRole, setEditRole] = useState<Role | "">("");
   const [editProfileUserId, setEditProfileUserId] = useState<string | null>(null);
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [delegateUserId, setDelegateUserId] = useState<string | null>(null);
+  const [transferUserId, setTransferUserId] = useState<string | null>(null);
 
   const refetch = async (pageOffset = 0) => {
     setLoading(true);
@@ -98,7 +106,11 @@ export function AdminUsersClient({
   }, [branchIdFromUrl]);
 
   const isAdmin = callerRole === "ADMIN";
-  const canCreate = callerRole === "ADMIN" || callerRole === "BRANCH_MANAGER";
+  const canManageUsers =
+    callerRole === "ADMIN" || callerRole === "BRANCH_MANAGER" || callerRole === "TEAM_LEAD";
+  const canDelegate = callerRole === "ADMIN" || callerRole === "BRANCH_MANAGER";
+  const canTransfer = callerRole === "ADMIN" || callerRole === "BRANCH_MANAGER";
+  const effectiveBranchId = branchIdFromUrl ?? callerBranchId ?? null;
 
   return (
     <div className="flex flex-col gap-6 p-4">
@@ -110,7 +122,7 @@ export function AdminUsersClient({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle className="font-mono">Users</CardTitle>
-          {canCreate && (
+          {canManageUsers && (
             <Button onClick={() => setCreateOpen(true)} className="font-mono">
               Create User
             </Button>
@@ -189,8 +201,8 @@ export function AdminUsersClient({
                       )}
                     </div>
                   )}
-                  {canCreate && editUserId !== u.id && editProfileUserId !== u.id && resetPasswordUserId !== u.id && (
-                    <div className="flex items-center gap-2">
+                  {canManageUsers && editUserId !== u.id && editProfileUserId !== u.id && resetPasswordUserId !== u.id && delegateUserId !== u.id && transferUserId !== u.id && (
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         variant="outline"
@@ -205,6 +217,24 @@ export function AdminUsersClient({
                       >
                         Reset password
                       </Button>
+                      {canDelegate && (u.role === "PLAYER" || u.role === "TEAM_LEAD") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setDelegateUserId(u.id)}
+                        >
+                          {u.role === "TEAM_LEAD" ? "Delegation" : "Make team lead"}
+                        </Button>
+                      )}
+                      {canTransfer && (u.role === "PLAYER" || u.role === "TEAM_LEAD") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setTransferUserId(u.id)}
+                        >
+                          Transfer
+                        </Button>
+                      )}
                     </div>
                   )}
                   </div>
@@ -229,6 +259,31 @@ export function AdminUsersClient({
                       await refetch(page * usersLimit);
                     }}
                     onCancel={() => setResetPasswordUserId(null)}
+                  />
+                )}
+                {delegateUserId === u.id && effectiveBranchId && (
+                  <DelegationForm
+                    user={u}
+                    branchId={effectiveBranchId}
+                    teams={teams}
+                    onSuccess={async () => {
+                      setDelegateUserId(null);
+                      await refetch(page * usersLimit);
+                    }}
+                    onCancel={() => setDelegateUserId(null)}
+                  />
+                )}
+                {transferUserId === u.id && (
+                  <TransferPlayerForm
+                    user={u}
+                    branches={branches}
+                    teams={teams}
+                    currentBranchId={u.branchId ?? effectiveBranchId}
+                    onSuccess={async () => {
+                      setTransferUserId(null);
+                      await refetch(page * usersLimit);
+                    }}
+                    onCancel={() => setTransferUserId(null)}
                   />
                 )}
                 </div>
@@ -596,5 +651,265 @@ function CreateUserForm({
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function DelegationForm({
+  user,
+  branchId,
+  teams,
+  onSuccess,
+  onCancel,
+}: {
+  user: UserRow;
+  branchId: string;
+  teams: TeamOption[];
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const [permissions, setPermissions] = useState<BranchPermission[]>([]);
+  const [teamId, setTeamId] = useState<string>("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [loadingGrants, setLoadingGrants] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingGrants(true);
+    getDelegationGrantsForUser(user.id, branchId)
+      .then((grants) => {
+        if (cancelled) return;
+        setPermissions(grants.map((g) => g.permission));
+        const scoped = grants.find((g) => g.teamScopeKey)?.teamScopeKey;
+        if (scoped) setTeamId(scoped);
+      })
+      .catch(() => {
+        if (!cancelled) setPermissions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingGrants(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, branchId]);
+
+  const togglePermission = (p: BranchPermission) => {
+    setPermissions((prev) =>
+      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
+    );
+  };
+
+  const handleSave = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await grantDelegation({
+        userId: user.id,
+        permissions,
+        teamId: teamId || null,
+        expiresAt: expiresAt || null,
+      });
+      if (!res.ok) throw new Error(res.error);
+      onSuccess();
+    } catch (e) {
+      setError(getUserFacingErrorMessage(e, "Failed to save delegation."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRevoke = async () => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await revokeDelegation(user.id);
+      if (!res.ok) throw new Error(res.error);
+      onSuccess();
+    } catch (e) {
+      setError(getUserFacingErrorMessage(e, "Failed to revoke delegation."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-3">
+      <p className="mb-3 font-mono text-sm text-foreground">
+        Delegation for <span className="text-primary">{user.name}</span>
+      </p>
+      <ErrorAlert message={error} />
+      {loadingGrants ? (
+        <PortalLoadingInline className="min-h-[60px]" />
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            {BRANCH_PERMISSIONS.map((p) => (
+              <label key={p} className="flex cursor-pointer items-center gap-2 font-mono text-sm">
+                <input
+                  type="checkbox"
+                  checked={permissions.includes(p)}
+                  onChange={() => togglePermission(p)}
+                  className="rounded border-border"
+                />
+                {BRANCH_PERMISSION_LABELS[p]}
+              </label>
+            ))}
+          </div>
+          {teams.length > 0 && (
+            <div className="grid gap-1">
+              <Label className="text-xs">Team scope (optional)</Label>
+              <Select value={teamId || "__all__"} onValueChange={(v) => setTeamId(v === "__all__" ? "" : v)}>
+                <SelectTrigger className="h-9 w-full max-w-xs">
+                  <SelectValue placeholder="Whole branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Whole branch</SelectItem>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="grid gap-1">
+            <Label className="text-xs">Expires (optional)</Label>
+            <Input
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              className="h-9 max-w-xs font-mono"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={submitting || permissions.length === 0} onClick={handleSave}>
+              Save delegation
+            </Button>
+            {user.role === "TEAM_LEAD" && (
+              <Button size="sm" variant="destructive" disabled={submitting} onClick={handleRevoke}>
+                Revoke all
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TransferPlayerForm({
+  user,
+  branches,
+  teams,
+  currentBranchId,
+  onSuccess,
+  onCancel,
+}: {
+  user: UserRow;
+  branches: BranchOption[];
+  teams: TeamOption[];
+  currentBranchId?: string | null;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const [toBranchId, setToBranchId] = useState("");
+  const [toTeamId, setToTeamId] = useState("");
+  const [reason, setReason] = useState("");
+  const [blockers, setBlockers] = useState<{ openTaskCount: number; ownedZoneCount: number } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getTransferBlockers(user.id).then(setBlockers).catch(() => setBlockers(null));
+  }, [user.id]);
+
+  const destBranches = branches.filter((b) => b.id !== currentBranchId);
+  const destTeams = teams.filter((t) => t.branchId === toBranchId);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!toBranchId) return;
+    setError(null);
+    setSubmitting(true);
+    try {
+      const res = await transferPlayerBranch({
+        userId: user.id,
+        toBranchId,
+        toTeamId: toTeamId || null,
+        reason: reason.trim() || null,
+      });
+      if (!res.ok) throw new Error(res.error);
+      onSuccess();
+    } catch (err) {
+      setError(getUserFacingErrorMessage(err, "Transfer failed."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="rounded-lg border border-border bg-muted/30 p-3">
+      <p className="mb-2 font-mono text-sm">
+        Transfer <span className="text-primary">{user.name}</span> to another branch (XP preserved)
+      </p>
+      <ErrorAlert message={error} />
+      {blockers && (blockers.openTaskCount > 0 || blockers.ownedZoneCount > 0) && (
+        <p className="mb-2 text-xs text-amber-600 dark:text-amber-400">
+          {blockers.openTaskCount > 0 && `${blockers.openTaskCount} open task(s). `}
+          {blockers.ownedZoneCount > 0 && `${blockers.ownedZoneCount} owned zone(s) will be released. `}
+          Open tasks block transfer.
+        </p>
+      )}
+      <div className="flex flex-col gap-3">
+        <div className="grid gap-1">
+          <Label className="text-xs">Destination branch</Label>
+          <Select value={toBranchId} onValueChange={(v) => { setToBranchId(v); setToTeamId(""); }}>
+            <SelectTrigger className="h-9 max-w-md">
+              <SelectValue placeholder="Select branch" />
+            </SelectTrigger>
+            <SelectContent>
+              {destBranches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.companyName} {b.branchCode ? `(${b.branchCode})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {destTeams.length > 0 && (
+          <div className="grid gap-1">
+            <Label className="text-xs">Destination team (optional)</Label>
+            <Select value={toTeamId || "__none__"} onValueChange={(v) => setToTeamId(v === "__none__" ? "" : v)}>
+              <SelectTrigger className="h-9 max-w-md">
+                <SelectValue placeholder="No team" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">No team</SelectItem>
+                {destTeams.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <div className="grid gap-1">
+          <Label className="text-xs">Reason (optional)</Label>
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} className="h-9 max-w-md font-mono" />
+        </div>
+        <p className="text-xs text-muted-foreground">Player should sign out and back in to see their new branch.</p>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            type="submit"
+            disabled={submitting || !toBranchId || (blockers?.openTaskCount ?? 0) > 0}
+          >
+            Transfer
+          </Button>
+          <Button size="sm" type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+        </div>
+      </div>
+    </form>
   );
 }

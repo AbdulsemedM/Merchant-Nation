@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { getServerAuthSession } from "@/lib/auth";
+import { requireAdminPageAccess } from "@/lib/require-admin-page";
 import { CreateMissionClient } from "./CreateMissionClient";
 
 export const dynamic = "force-dynamic";
@@ -9,10 +8,7 @@ export default async function CreateMissionPage({
 }: {
   searchParams: Promise<{ branchId?: string; territoryCellId?: string }>;
 }) {
-  const session = await getServerAuthSession();
-  if (!session || (session.role !== "ADMIN" && session.role !== "BRANCH_MANAGER")) {
-    redirect("/");
-  }
+  const session = await requireAdminPageAccess("/admin/missions/create");
 
   const params = await searchParams;
   const branchIdFromUrl = session.role === "ADMIN" ? (params.branchId ?? null) : session.branchId ?? null;

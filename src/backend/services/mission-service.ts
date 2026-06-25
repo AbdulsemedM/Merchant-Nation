@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { authorize } from "@/lib/auth";
+import { authorize, authorizeBranchAction, sessionOwnsBranch } from "@/lib/auth";
 import { getCurrentUser } from "@/app/actions/users";
 import { logActivity } from "@/backend/services/activity-log-service";
 import {
@@ -49,7 +49,7 @@ export type CreateMissionData = {
 };
 
 export async function createMission(data: CreateMissionData) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"], "createMission");
+  const session = await authorizeBranchAction("MANAGE_MISSIONS", "createMission");
   let branchId: string | null = data.branchId ?? null;
   if (!branchId && data.branchCode) {
     const branch = await prisma.branch.findUnique({
@@ -58,7 +58,7 @@ export async function createMission(data: CreateMissionData) {
     });
     branchId = branch?.id ?? null;
   }
-  if (session.role === "BRANCH_MANAGER") {
+  if (session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") {
     if (!session.branchId) throw new Error("Branch manager has no branch assigned.");
     branchId = session.branchId;
   }
@@ -97,9 +97,9 @@ export async function createMission(data: CreateMissionData) {
 
 /** List missions: admin only with branch filter, manager/player own branch only. No branch can see another branch's missions. */
 export async function getMissions(filters?: { branchId?: string | null; limit?: number; offset?: number }) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER", "PLAYER"], "getMissions");
+  const session = await authorize(["ADMIN", "BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "getMissions");
   let branchId: string | null = filters?.branchId ?? null;
-  if (session.role === "BRANCH_MANAGER" || session.role === "PLAYER") {
+  if (session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD" || session.role === "PLAYER") {
     const user = await getCurrentUser(session.id);
     branchId = session.branchId ?? user?.branchId ?? user?.team?.branchId ?? null;
   }
@@ -141,7 +141,7 @@ export async function getMissions(filters?: { branchId?: string | null; limit?: 
 
 /** Single mission by id (for edit page or read-only view). Manager/admin can edit; PLAYER can view (same branch). Branch-scoped. */
 export async function getMissionById(missionId: string, branchIdFilter?: string | null) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER", "PLAYER"], "getMissionById");
+  const session = await authorize(["ADMIN", "BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "getMissionById");
   const mission = await prisma.mission.findUnique({
     where: { id: missionId },
     include: {
@@ -156,14 +156,14 @@ export async function getMissionById(missionId: string, branchIdFilter?: string 
     if (mission.branchId !== session.branchId) return null;
     return mission;
   }
-  if (session.role === "BRANCH_MANAGER" && mission.branchId !== session.branchId) return null;
+  if (!sessionOwnsBranch(session, mission.branchId)) return null;
   if (session.role === "ADMIN" && branchIdFilter != null && mission.branchId !== branchIdFilter) return null;
   return mission;
 }
 
 /** Single task by id for assignee (or manager/admin for approval view). Returns task with mission, goals, and task-report leads. Branch-scoped for admin when branchId provided. */
 export async function getTaskByIdForAssignee(taskId: string, branchIdFilter?: string | null) {
-  const session = await authorize(["PLAYER", "BRANCH_MANAGER", "ADMIN"], "getTaskByIdForAssignee");
+  const session = await authorize(["PLAYER", "TEAM_LEAD", "BRANCH_MANAGER", "ADMIN"], "getTaskByIdForAssignee");
   const task = await prisma.missionTask.findUnique({
     where: { id: taskId },
     include: {
@@ -185,7 +185,7 @@ export async function getTaskByIdForAssignee(taskId: string, branchIdFilter?: st
   if (!task) return null;
   if (session.role === "PLAYER") {
     if (task.assigneeId !== session.id) return null;
-  } else if (session.role === "BRANCH_MANAGER") {
+  } else if (session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") {
     if (task.mission.branchId !== session.branchId) return null;
   } else if (session.role === "ADMIN" && branchIdFilter != null) {
     if (task.mission.branchId !== branchIdFilter) return null;
@@ -195,7 +195,7 @@ export async function getTaskByIdForAssignee(taskId: string, branchIdFilter?: st
 
 /** Task assigned to current user for a specific territory cell (for player map drawer). */
 export async function getMyTaskForCell(territoryCellId: string) {
-  const session = await authorize(["PLAYER", "BRANCH_MANAGER", "ADMIN"], "getMyTaskForCell");
+  const session = await authorize(["PLAYER", "TEAM_LEAD", "BRANCH_MANAGER", "ADMIN"], "getMyTaskForCell");
   const task = await prisma.missionTask.findFirst({
     where: {
       assigneeId: session.id,
@@ -212,13 +212,13 @@ export async function getMyTaskForCell(territoryCellId: string) {
 
 /** Missions and tasks assigned to current user (for staff "My tasks"). Only tasks from the user's branch. */
 export async function getMyTasks() {
-  const session = await authorize(["PLAYER", "BRANCH_MANAGER", "ADMIN"], "getMyTasks");
+  const session = await authorize(["PLAYER", "TEAM_LEAD", "BRANCH_MANAGER", "ADMIN"], "getMyTasks");
   if (typeof (prisma as { missionTask?: { findMany: unknown } }).missionTask?.findMany !== "function") {
     return [];
   }
   // Resolve branch: session (from JWT) or user's branch/team from DB (players may only have team.branchId)
   let branchId = session.branchId;
-  if (!branchId && (session.role === "PLAYER" || session.role === "BRANCH_MANAGER")) {
+  if (!branchId && (session.role === "PLAYER" || session.role === "TEAM_LEAD" || session.role === "BRANCH_MANAGER")) {
     const user = await getCurrentUser(session.id);
     branchId = user?.branchId ?? user?.team?.branchId ?? null;
   }
@@ -261,7 +261,7 @@ export async function getMyScoutedAndRegistered(): Promise<{
   scoutedLeads: MyScoutedLead[];
   inductedMerchants: MyInductedMerchant[];
 }> {
-  const session = await authorize(["BRANCH_MANAGER", "PLAYER"], "getMyScoutedAndRegistered");
+  const session = await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "getMyScoutedAndRegistered");
   const user = await getCurrentUser(session.id);
   const branchId = session.branchId ?? user?.branchId ?? user?.team?.branchId ?? null;
   if (!branchId) return { scoutedLeads: [], inductedMerchants: [] };
@@ -329,7 +329,7 @@ export async function getMyScoutedAndRegistered(): Promise<{
 
 /** Pending task approvals. Branch manager: own branch. Admin: only the branch passed (no cross-branch). */
 export async function getPendingTaskApprovals(filters?: { branchId?: string | null }) {
-  const session = await authorize(["BRANCH_MANAGER", "ADMIN"], "getPendingTaskApprovals");
+  const session = await authorizeBranchAction("MANAGE_MISSIONS", "getPendingTaskApprovals");
   if (typeof (prisma as { missionTask?: { findMany: unknown } }).missionTask?.findMany !== "function") {
     return [];
   }
@@ -363,13 +363,13 @@ export type CreateMissionGoalData = {
 };
 
 export async function createMissionGoal(data: CreateMissionGoalData) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"], "createMissionGoal");
+  const session = await authorizeBranchAction("MANAGE_MISSIONS", "createMissionGoal");
   const mission = await prisma.mission.findUnique({
     where: { id: data.missionId },
     select: { branchId: true },
   });
   if (!mission) throw new Error("Mission not found");
-  if (session.role === "BRANCH_MANAGER" && mission.branchId !== session.branchId) {
+  if (!sessionOwnsBranch(session, mission.branchId)) {
     throw new Error("You can only add goals to missions in your branch.");
   }
   const goal = await prisma.missionGoal.create({
@@ -398,13 +398,13 @@ export async function updateMissionGoal(
   goalId: string,
   data: { title?: string; targetValue?: number | null; unit?: string | null; dueDate?: Date | string | null }
 ) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"], "updateMissionGoal");
+  const session = await authorizeBranchAction("MANAGE_MISSIONS", "updateMissionGoal");
   const goal = await prisma.missionGoal.findUnique({
     where: { id: goalId },
     include: { mission: { select: { branchId: true } } },
   });
   if (!goal) throw new Error("Goal not found");
-  if (session.role === "BRANCH_MANAGER" && goal.mission.branchId !== session.branchId) {
+  if (!sessionOwnsBranch(session, goal.mission.branchId)) {
     throw new Error("You can only edit goals of missions in your branch.");
   }
   await prisma.missionGoal.update({
@@ -429,13 +429,13 @@ export async function updateMissionGoal(
 }
 
 export async function deleteMissionGoal(goalId: string) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"], "deleteMissionGoal");
+  const session = await authorizeBranchAction("MANAGE_MISSIONS", "deleteMissionGoal");
   const goal = await prisma.missionGoal.findUnique({
     where: { id: goalId },
     include: { mission: { select: { branchId: true } } },
   });
   if (!goal) throw new Error("Goal not found");
-  if (session.role === "BRANCH_MANAGER" && goal.mission.branchId !== session.branchId) {
+  if (!sessionOwnsBranch(session, goal.mission.branchId)) {
     throw new Error("You can only delete goals of missions in your branch.");
   }
   await prisma.missionGoal.delete({ where: { id: goalId } });
@@ -460,13 +460,13 @@ export type CreateMissionTaskData = {
 };
 
 export async function createMissionTask(data: CreateMissionTaskData) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"], "createMissionTask");
+  const session = await authorizeBranchAction("MANAGE_MISSIONS", "createMissionTask");
   const mission = await prisma.mission.findUnique({
     where: { id: data.missionId },
     select: { branchId: true, name: true },
   });
   if (!mission) throw new Error("Mission not found");
-  if (session.role === "BRANCH_MANAGER" && mission.branchId !== session.branchId) {
+  if (!sessionOwnsBranch(session, mission.branchId)) {
     throw new Error("You can only add tasks to missions in your branch.");
   }
   const assignee = await prisma.user.findUnique({
@@ -479,7 +479,7 @@ export async function createMissionTask(data: CreateMissionTaskData) {
   if (mission.branchId && assigneeBranchId !== mission.branchId) {
     throw new Error("Assignee must belong to the mission branch.");
   }
-  if (session.role === "BRANCH_MANAGER" && assignee.role !== "PLAYER") {
+  if ((session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") && assignee.role !== "PLAYER") {
     throw new Error("You can only assign tasks to branch staff.");
   }
   if (data.territoryCellId && mission.branchId) {
@@ -525,7 +525,7 @@ export async function updateMissionTaskStatus(
   status: MissionTaskStatus,
   options?: { completionNotes?: string | null }
 ): Promise<{ ok: boolean; error?: string }> {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER", "PLAYER"], "updateMissionTaskStatus");
+  const session = await authorize(["ADMIN", "BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "updateMissionTaskStatus");
   const task = await prisma.missionTask.findUnique({
     where: { id: taskId },
     include: { mission: { select: { branchId: true } }, assignee: { select: { name: true } } },
@@ -544,7 +544,15 @@ export async function updateMissionTaskStatus(
     if (task.status !== "SUBMITTED") {
       return { ok: false, error: "Only submitted tasks can be approved or rejected." };
     }
-    if (session.role === "BRANCH_MANAGER" && task.mission.branchId !== session.branchId) {
+    if (session.role === "TEAM_LEAD") {
+      try {
+        await authorizeBranchAction("MANAGE_MISSIONS", "updateMissionTaskStatus", {
+          branchId: task.mission.branchId,
+        });
+      } catch {
+        return { ok: false, error: "You do not have permission to approve tasks." };
+      }
+    } else if (!sessionOwnsBranch(session, task.mission.branchId)) {
       return { ok: false, error: "You can only approve tasks in your branch." };
     }
   }

@@ -1,4 +1,4 @@
-import { authorize, type Role } from "@/lib/auth";
+import { authorize, authorizeBranchAction, type Role } from "@/lib/auth";
 import type { ZoneStatus } from "@prisma/client";
 import * as zonesRepo from "@/backend/repositories/zones-repository";
 import { getUserById } from "@/backend/repositories/user-repository";
@@ -21,7 +21,7 @@ export async function getZones(branchId?: string | null): Promise<ZoneWithStats[
 
 export async function updateZoneStatus(zoneId: string, newStatus: ZoneStatus): Promise<void> {
   const session = await authorize(
-    ["PLAYER", "BRANCH_MANAGER", "ADMIN"] as Role[],
+    ["PLAYER", "TEAM_LEAD", "BRANCH_MANAGER", "ADMIN"] as Role[],
     "updateZoneStatus"
   );
 
@@ -33,6 +33,10 @@ export async function updateZoneStatus(zoneId: string, newStatus: ZoneStatus): P
     if (!allowed?.includes(newStatus)) {
       throw new Error(`Players cannot change status from ${zone.status} to ${newStatus}`);
     }
+  } else if (session.role === "TEAM_LEAD") {
+    await authorizeBranchAction("MANAGE_TERRITORY", "updateZoneStatus", {
+      branchId: zone.branchId,
+    });
   } else if (session.role === "BRANCH_MANAGER") {
     if (zone.branchId !== session.branchId) {
       throw new Error("You can only override zones in your branch");

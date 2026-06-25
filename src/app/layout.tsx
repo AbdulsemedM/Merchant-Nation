@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import { ConditionalAppLayout } from "@/components/layout/ConditionalAppLayout";
 import { UserRoleProvider } from "@/contexts/UserRoleContext";
-import { getServerAuthSession } from "@/lib/auth";
+import { getServerAuthSession, getActivePermissionsForSession } from "@/lib/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,13 +43,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getServerAuthSession();
+  const branchPermissions = session ? await getActivePermissionsForSession(session) : [];
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased touch-manipulation`}
         suppressHydrationWarning
       >
-        <UserRoleProvider initialSession={session}>
+        <UserRoleProvider initialSession={session} initialPermissions={branchPermissions}>
           <ConditionalAppLayout>{children}</ConditionalAppLayout>
         </UserRoleProvider>
       </body>

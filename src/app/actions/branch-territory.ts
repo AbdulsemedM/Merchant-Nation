@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authorize, type Role } from "@/lib/auth";
+import { authorize, authorizeBranchAction, sessionOwnsBranch, type Role } from "@/lib/auth";
 import { subdivideTerritory, getGridSizeForBounds, normalizeTerritoryPoints } from "@/lib/territoryGrid";
 import { polygonCentroid, haversineDistanceKm } from "@/lib/territoryNeighbors";
 import { logActivity } from "@/app/actions/activity-log";
@@ -9,9 +9,7 @@ import type { ZoneStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 
 function canAccessBranch(session: { role: Role; branchId: string | null }, branchId: string): boolean {
-  if (session.role === "ADMIN") return true;
-  if (session.role === "BRANCH_MANAGER" && session.branchId === branchId) return true;
-  return false;
+  return sessionOwnsBranch(session as import("@/lib/auth").AuthSession, branchId);
 }
 
 /** True if user can read (view) this branch's territory: admin, branch manager of branch, or player in branch. */
@@ -21,6 +19,7 @@ async function canAccessBranchForRead(branchId: string): Promise<boolean> {
   if (!session) return false;
   if (session.role === "ADMIN") return true;
   if (session.role === "BRANCH_MANAGER" && session.branchId === branchId) return true;
+  if (session.role === "TEAM_LEAD" && session.branchId === branchId) return true;
   if (session.role === "PLAYER") {
     const user = await prisma.user.findUnique({
       where: { id: session.id },
@@ -89,8 +88,7 @@ export async function getBranchTerritory(
   branchId: string | null
 ): Promise<{ lat: number; lng: number }[] | null> {
   if (!branchId) return null;
-  const session = await authorize(["BRANCH_MANAGER", "ADMIN"] as Role[], "getBranchTerritory");
-  if (!canAccessBranch(session, branchId)) throw new Error("Access denied");
+  const session = await authorizeBranchAction("MANAGE_TERRITORY", "getBranchTerritory", { branchId });
 
   const branch = await prisma.branch.findUnique({
     where: { id: branchId },
@@ -106,7 +104,7 @@ export async function saveBranchTerritory(
   branchId: string,
   points: { lat: number; lng: number }[]
 ): Promise<void> {
-  const session = await authorize(["BRANCH_MANAGER"] as Role[], "saveBranchTerritory");
+  const session = await authorizeBranchAction("MANAGE_TERRITORY", "saveBranchTerritory", { branchId });
   if (!canAccessBranch(session, branchId)) throw new Error("Access denied");
 
   if (!points || points.length < 4) throw new Error("At least 4 points are required");
@@ -283,7 +281,7 @@ export async function getTerritoryCells(
   branchId: string | null
 ): Promise<TerritoryCellWithCoords[]> {
   if (!branchId) return [];
-  const session = await authorize(["BRANCH_MANAGER", "ADMIN"] as Role[], "getTerritoryCells");
+  const session = await authorizeBranchAction("MANAGE_TERRITORY", "getTerritoryCells", { branchId });
   if (!canAccessBranch(session, branchId)) return [];
 
   const cells = await prisma.territoryCell.findMany({
@@ -310,13 +308,15 @@ export async function updateTerritoryCell(
   cellId: string,
   data: { status?: ZoneStatus; label?: string | null }
 ): Promise<void> {
-  const session = await authorize(["BRANCH_MANAGER"] as Role[], "updateTerritoryCell");
-
   const cell = await prisma.territoryCell.findUnique({
     where: { id: cellId },
     select: { id: true, branchId: true },
   });
   if (!cell) throw new Error("Cell not found");
+
+  const session = await authorizeBranchAction("MANAGE_TERRITORY", "updateTerritoryCell", {
+    branchId: cell.branchId,
+  });
   if (!canAccessBranch(session, cell.branchId)) throw new Error("Access denied");
 
   const updateData: { status?: ZoneStatus; label?: string | null } = {};

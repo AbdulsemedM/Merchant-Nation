@@ -62,7 +62,7 @@ export async function createLead(input: ScoutZoneInput): Promise<{ ok: boolean; 
 
 export async function scoutZone(input: ScoutZoneInput): Promise<{ ok: boolean; error?: string; unlockedBadges?: string[] }> {
   try {
-    const session = await authorize(["BRANCH_MANAGER", "PLAYER"], "scoutZone");
+    const session = await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "scoutZone");
     const userId = session.id;
 
     const user = await getCurrentUser(userId);
@@ -207,7 +207,7 @@ export async function updateLeadLocation(
   locationLng: number
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await authorize(["BRANCH_MANAGER", "PLAYER"], "updateLeadLocation");
+    await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "updateLeadLocation");
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { id: true, status: true },
@@ -243,7 +243,7 @@ export async function updateLeadInductionNote(
   note: string
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await authorize(["BRANCH_MANAGER", "PLAYER"], "updateLeadInductionNote");
+    await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "updateLeadInductionNote");
     const editable = await assertLeadEditable(leadId);
     if (!editable.ok) return editable;
     await prisma.lead.update({
@@ -264,7 +264,7 @@ export async function updateLeadFutureProductInterests(
   interests: string[]
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await authorize(["BRANCH_MANAGER", "PLAYER"], "updateLeadFutureProductInterests");
+    await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "updateLeadFutureProductInterests");
     const editable = await assertLeadEditable(leadId);
     if (!editable.ok) return editable;
     const valid = interests.filter(isInductionProductKey);
@@ -289,7 +289,7 @@ export async function updateLeadRegisteredProductInterests(
   registered: string[]
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await authorize(["BRANCH_MANAGER", "PLAYER"], "updateLeadRegisteredProductInterests");
+    await authorize(["BRANCH_MANAGER", "TEAM_LEAD", "PLAYER"], "updateLeadRegisteredProductInterests");
     const editable = await assertLeadEditable(leadId);
     if (!editable.ok) return editable;
     const valid = registered.filter(isInductionProductKey);

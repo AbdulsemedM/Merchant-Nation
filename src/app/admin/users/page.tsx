@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getServerAuthSession } from "@/lib/auth";
+import { requireAdminPageAccess } from "@/lib/require-admin-page";
 import { getUsersForAdmin } from "@/app/actions/users";
 import { getBranchesFromDb } from "@/app/actions/branches";
 import { BranchListNav } from "@/components/admin/BranchListNav";
@@ -12,10 +12,7 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<{ branchId?: string }>;
 }) {
-  const session = await getServerAuthSession();
-  if (!session || (session.role !== "ADMIN" && session.role !== "BRANCH_MANAGER")) {
-    redirect("/");
-  }
+  const session = await requireAdminPageAccess("/admin/users");
 
   const params = await searchParams;
   const branchIdFromUrl = session.role === "ADMIN" ? (params.branchId ?? null) : null;
@@ -62,6 +59,7 @@ export default async function AdminUsersPage({
         totalUsers={totalUsers}
         usersLimit={limit}
         callerRole={session.role}
+        callerBranchId={session.branchId}
         branchIdFromUrl={branchIdFromUrl}
       />
     </div>

@@ -30,8 +30,8 @@ function SidebarNav({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const { role } = useUserRole();
-  const navItems = getNavItems(role);
+  const { role, branchPermissions } = useUserRole();
+  const navItems = getNavItems(role, branchPermissions);
 
   return (
     <nav className="flex flex-col gap-0.5 p-2" aria-label="Main">

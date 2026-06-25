@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { authorize } from "@/lib/auth";
+import { authorize, authorizeBranchAction } from "@/lib/auth";
 import type { Prisma } from "@prisma/client";
 
 export type OperationalSummaryFilters = {
@@ -102,10 +102,12 @@ function parseDate(dateStr: string | null | undefined): Date | undefined {
 export async function getOperationalSummary(
   filters: OperationalSummaryFilters = {}
 ): Promise<OperationalSummaryResult> {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"], "getOperationalSummary");
+  const session = await authorizeBranchAction("VIEW_REPORTS", "getOperationalSummary", {
+    branchId: filters.branchId,
+  });
 
   let branchIdFilter: string | null = filters.branchId ?? null;
-  if (session.role === "BRANCH_MANAGER") {
+  if (session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") {
     if (!session.branchId) {
       return emptySummary();
     }

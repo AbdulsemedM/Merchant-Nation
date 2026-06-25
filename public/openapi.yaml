@@ -325,7 +325,7 @@ components:
   schemas:
     Role:
       type: string
-      enum: [PLAYER, BRANCH_MANAGER, ADMIN]
+      enum: [PLAYER, TEAM_LEAD, BRANCH_MANAGER, ADMIN]
 
     ZoneStatus:
       type: string

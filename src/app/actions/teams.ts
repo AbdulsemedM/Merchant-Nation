@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { authorize, type Role } from "@/lib/auth";
+import { authorize, authorizeBranchAction, type Role } from "@/lib/auth";
 import { logActivity } from "@/app/actions/activity-log";
 import { getUserFacingErrorMessage } from "@/lib/errors";
 
@@ -18,7 +18,7 @@ export type CreateTeamData = {
  */
 export async function createTeam(data: CreateTeamData) {
   try {
-    const session = await authorize(["ADMIN", "BRANCH_MANAGER"] as Role[], "createTeam");
+    const session = await authorizeBranchAction("MANAGE_TEAMS", "createTeam");
 
     let branchId: string | null = null;
 

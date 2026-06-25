@@ -1,7 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { authorize, getServerAuthSession, type Role, hashPassword } from "@/lib/auth";
+import {
+  authorize,
+  authorizeBranchAction,
+  getActiveGrantsForUser,
+  getServerAuthSession,
+  UnauthorizedError,
+  type Role,
+  hashPassword,
+} from "@/lib/auth";
 import type { AuthSession } from "@/lib/auth";
 import { logActivity } from "@/backend/services/activity-log-service";
+import { assertTeamLeadCanAccessTarget } from "@/backend/services/delegation-service";
 import * as branchesService from "@/backend/services/branches-service";
 
 export type CreateUserData = {
@@ -113,7 +122,7 @@ export async function getLeaderboard(limit = 20, branchId?: string | null) {
     if (!session) return [];
 
     let effectiveBranchId = branchId ?? null;
-    if (session.role === "BRANCH_MANAGER" || session.role === "PLAYER") {
+    if (session.role === "BRANCH_MANAGER" || session.role === "PLAYER" || session.role === "TEAM_LEAD") {
       const self = await getCurrentUser(session.id);
       effectiveBranchId =
         session.branchId ?? self?.branchId ?? self?.team?.branchId ?? null;
@@ -208,10 +217,20 @@ export async function getUsersForAdmin(
   branchIdFilter?: string | null,
   options?: { limit?: number; offset?: number }
 ): Promise<{
-  users: { id: string; name: string; role: string; teamName: string | null; branchName: string | null }[];
+  users: {
+    id: string;
+    name: string;
+    role: string;
+    teamName: string | null;
+    branchName: string | null;
+    teamId: string | null;
+    branchId: string | null;
+  }[];
   total: number;
 }> {
-  const session = await authorize(["BRANCH_MANAGER", "ADMIN"] as Role[], "getUsersForAdmin");
+  const session = await authorizeBranchAction("MANAGE_USERS", "getUsersForAdmin", {
+    branchId: branchIdFilter ?? undefined,
+  });
   const limit = Math.min(Math.max(options?.limit ?? 50, 1), 100);
   const offset = Math.max(options?.offset ?? 0, 0);
 
@@ -232,7 +251,9 @@ export async function getUsersForAdmin(
             id: true,
             name: true,
             role: true,
-            team: { select: { name: true } },
+            teamId: true,
+            branchId: true,
+            team: { select: { id: true, name: true, branchId: true } },
             branch: { select: { name: true } },
           },
         }),
@@ -246,14 +267,29 @@ export async function getUsersForAdmin(
           role: u.role,
           teamName: u.team?.name ?? null,
           branchName: u.branch?.name ?? null,
+          teamId: u.teamId ?? u.team?.id ?? null,
+          branchId: u.branchId ?? u.team?.branchId ?? null,
         })),
         total,
       };
     }
 
+    const teamLeadScopeKeys =
+      session.role === "TEAM_LEAD" && session.branchId
+        ? (await getActiveGrantsForUser(session.id, session.branchId))
+            .filter((g) => g.permission === "MANAGE_USERS")
+            .map((g) => g.teamScopeKey)
+        : null;
+
+    const teamLeadTeamFilter =
+      teamLeadScopeKeys && teamLeadScopeKeys.length > 0 && !teamLeadScopeKeys.includes("")
+        ? { teamId: { in: teamLeadScopeKeys } }
+        : {};
+
     const where = {
-      role: "PLAYER" as const,
+      role: { in: ["PLAYER", "TEAM_LEAD"] as Role[] },
       OR: [{ branchId: session.branchId }, { team: { branchId: session.branchId } }],
+      ...teamLeadTeamFilter,
     };
 
     const [users, total] = await Promise.all([
@@ -266,7 +302,9 @@ export async function getUsersForAdmin(
           id: true,
           name: true,
           role: true,
-          team: { select: { name: true } },
+          teamId: true,
+          branchId: true,
+          team: { select: { id: true, name: true, branchId: true } },
           branch: { select: { name: true } },
         },
       }),
@@ -280,6 +318,8 @@ export async function getUsersForAdmin(
         role: u.role,
         teamName: u.team?.name ?? null,
         branchName: u.branch?.name ?? null,
+        teamId: u.teamId,
+        branchId: u.branchId ?? u.team?.branchId ?? null,
       })),
       total,
     };
@@ -290,7 +330,7 @@ export async function getUsersForAdmin(
 }
 
 export async function createUser(data: CreateUserData) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"] as Role[], "createUser");
+  const session = await authorizeBranchAction("MANAGE_USERS", "createUser");
 
   let resolvedBranchId: string | null = data.branchId ?? null;
   if (session.role === "ADMIN" && data.role !== "ADMIN") {
@@ -304,8 +344,8 @@ export async function createUser(data: CreateUserData) {
     }
   }
 
-  if (session.role === "BRANCH_MANAGER") {
-    if (data.role !== "PLAYER") throw new Error("Branch managers can only create PLAYER users.");
+  if (session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") {
+    if (data.role !== "PLAYER") throw new Error("You can only create PLAYER users.");
     if (!session.branchId) throw new Error("Branch manager has no branch assigned.");
     resolvedBranchId = session.branchId;
     if (data.teamId) {
@@ -314,6 +354,12 @@ export async function createUser(data: CreateUserData) {
         select: { branchId: true },
       });
       if (team?.branchId !== session.branchId) throw new Error("Team must be in your branch.");
+      if (session.role === "TEAM_LEAD") {
+        await authorizeBranchAction("MANAGE_USERS", "createUser", {
+          branchId: session.branchId,
+          targetTeamId: data.teamId,
+        });
+      }
     }
   } else {
     if ((data.role === "ADMIN" || data.role === "BRANCH_MANAGER") && session.role !== "ADMIN") {
@@ -371,6 +417,11 @@ export async function createUser(data: CreateUserData) {
 
 export async function updateUserRole(userId: string, newRole: Role) {
   const session = await authorize(["ADMIN"], "updateUserRole");
+  if (newRole === "TEAM_LEAD") {
+    throw new Error(
+      "Use the Delegation panel on the Users page to promote a player to TEAM_LEAD with permissions."
+    );
+  }
   const before = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true, name: true },
@@ -380,10 +431,16 @@ export async function updateUserRole(userId: string, newRole: Role) {
     where: { id: userId },
     data: {
       role: newRole,
-      // Admins are not under any branch; clear branch/team when promoting to ADMIN
       ...(newRole === "ADMIN" && { branchId: null, teamId: null }),
     },
   });
+
+  if (before?.role === "TEAM_LEAD" || newRole === "PLAYER") {
+    await prisma.userPermissionGrant.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
 
   const actor = await prisma.user.findUnique({
     where: { id: session.id },
@@ -403,26 +460,34 @@ export type UpdateUserData = {
   teamId?: string | null;
 };
 
-/** Branch manager can update name, email, team for users in their branch. */
+/** Branch manager or team lead can update name, email, team for users in their branch. */
 export async function updateUser(userId: string, data: UpdateUserData) {
-  const session = await authorize(["BRANCH_MANAGER", "ADMIN"] as Role[], "updateUser");
+  const session = await authorizeBranchAction("MANAGE_USERS", "updateUser");
   const target = await prisma.user.findUnique({
     where: { id: userId },
-    select: { branchId: true, team: { select: { branchId: true } }, name: true },
+    select: { branchId: true, teamId: true, team: { select: { branchId: true } }, name: true },
   });
   if (!target) throw new Error("User not found");
 
   const targetBranchId = target.branchId ?? target.team?.branchId ?? null;
-  if (session.role === "BRANCH_MANAGER") {
+  if (session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") {
     if (!session.branchId || targetBranchId !== session.branchId) {
       throw new Error("You can only edit users in your branch.");
     }
+    await assertTeamLeadCanAccessTarget(session, "MANAGE_USERS", userId);
   }
 
   const before = await prisma.user.findUnique({
     where: { id: userId },
     select: { name: true, email: true, teamId: true },
   });
+
+  if (session.role === "TEAM_LEAD" && data.teamId !== undefined && data.teamId) {
+    await authorizeBranchAction("MANAGE_USERS", "updateUserTeam", {
+      branchId: targetBranchId,
+      targetTeamId: data.teamId,
+    });
+  }
 
   await prisma.user.update({
     where: { id: userId },
@@ -502,9 +567,9 @@ export async function updateMyDisplayName(
   }
 }
 
-/** Branch manager can reset password for users in their branch. */
+/** Branch manager or team lead can reset password for users in their branch. */
 export async function resetUserPassword(userId: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
-  const session = await authorize(["BRANCH_MANAGER", "ADMIN"] as Role[], "resetUserPassword");
+  const session = await authorizeBranchAction("MANAGE_USERS", "resetUserPassword");
   const target = await prisma.user.findUnique({
     where: { id: userId },
     select: { branchId: true, team: { select: { branchId: true } }, name: true },
@@ -513,9 +578,14 @@ export async function resetUserPassword(userId: string, newPassword: string): Pr
   if (!target) return { ok: false, error: "User not found" };
 
   const targetBranchId = target.branchId ?? target.team?.branchId ?? null;
-  if (session.role === "BRANCH_MANAGER") {
+  if (session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") {
     if (!session.branchId || targetBranchId !== session.branchId) {
       return { ok: false, error: "You can only reset password for users in your branch." };
+    }
+    try {
+      await assertTeamLeadCanAccessTarget(session, "MANAGE_USERS", userId);
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "Not allowed." };
     }
   }
 
@@ -544,12 +614,25 @@ export async function getTeamsForAdmin(
   branchIdFilter?: string | null,
   options?: { limit?: number; offset?: number }
 ): Promise<{ teams: { id: string; name: string; branchId: string | null; branchName: string | null }[]; total: number }> {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"] as Role[], "getTeamsForAdmin");
+  const session = await authorizeBranchAction("MANAGE_TEAMS", "getTeamsForAdmin", {
+    branchId: branchIdFilter ?? undefined,
+  });
   const limit = Math.min(Math.max(options?.limit ?? 50, 1), 100);
   const offset = Math.max(options?.offset ?? 0, 0);
+  const teamLeadTeamScope =
+    session.role === "TEAM_LEAD" && session.branchId
+      ? (await getActiveGrantsForUser(session.id, session.branchId))
+          .filter((g) => g.permission === "MANAGE_TEAMS")
+          .map((g) => g.teamScopeKey)
+      : null;
+  const teamScopeFilter =
+    teamLeadTeamScope && teamLeadTeamScope.length > 0 && !teamLeadTeamScope.includes("")
+      ? { id: { in: teamLeadTeamScope } }
+      : {};
+
   const where =
-    session.role === "BRANCH_MANAGER" && session.branchId
-      ? { branchId: session.branchId }
+    (session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") && session.branchId
+      ? { branchId: session.branchId, ...teamScopeFilter }
       : session.role === "ADMIN" && branchIdFilter != null
         ? { branchId: branchIdFilter }
         : undefined;
@@ -589,5 +672,178 @@ export async function getBranchesForAdmin(): Promise<{ id: string; branchCode: s
     branchCode: b.branchCode,
     companyName: b.name,
   }));
+}
+
+export type TransferPlayerBranchInput = {
+  userId: string;
+  toBranchId: string;
+  toTeamId?: string | null;
+  reason?: string | null;
+};
+
+const OPEN_TASK_STATUSES = ["PENDING", "IN_PROGRESS", "SUBMITTED"] as const;
+
+/**
+ * Transfer a player to another branch, preserving XP and rank.
+ * ADMIN or source-branch BRANCH_MANAGER may initiate instantly.
+ */
+export async function transferPlayerBranch(
+  input: TransferPlayerBranchInput
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const session = await getServerAuthSession();
+  if (!session) return { ok: false, error: "Not authenticated." };
+
+  const target = await prisma.user.findUnique({
+    where: { id: input.userId },
+    select: {
+      id: true,
+      name: true,
+      role: true,
+      branchId: true,
+      teamId: true,
+      team: { select: { branchId: true } },
+    },
+  });
+  if (!target) return { ok: false, error: "User not found." };
+  if (target.id === session.id) {
+    return { ok: false, error: "You cannot transfer your own account." };
+  }
+  if (target.role !== "PLAYER" && target.role !== "TEAM_LEAD") {
+    return { ok: false, error: "Only players and team leads can be transferred." };
+  }
+
+  const fromBranchId = target.branchId ?? target.team?.branchId ?? null;
+  if (!fromBranchId) return { ok: false, error: "User is not assigned to a branch." };
+  if (fromBranchId === input.toBranchId) {
+    return { ok: false, error: "User is already in that branch." };
+  }
+
+  if (session.role === "BRANCH_MANAGER") {
+    if (!session.branchId || session.branchId !== fromBranchId) {
+      return { ok: false, error: "You can only transfer players out of your branch." };
+    }
+  } else if (session.role !== "ADMIN") {
+    return { ok: false, error: "Only admins and branch managers can transfer players." };
+  }
+
+  const destBranch = await prisma.branch.findUnique({
+    where: { id: input.toBranchId },
+    select: { id: true, name: true },
+  });
+  if (!destBranch) return { ok: false, error: "Destination branch not found." };
+
+  if (input.toTeamId) {
+    const team = await prisma.team.findUnique({
+      where: { id: input.toTeamId },
+      select: { branchId: true },
+    });
+    if (!team || team.branchId !== input.toBranchId) {
+      return { ok: false, error: "Destination team must belong to the destination branch." };
+    }
+  }
+
+  const openTasks = await prisma.missionTask.count({
+    where: {
+      assigneeId: target.id,
+      status: { in: [...OPEN_TASK_STATUSES] },
+      mission: { branchId: fromBranchId },
+    },
+  });
+  if (openTasks > 0) {
+    return {
+      ok: false,
+      error: `Cannot transfer: ${openTasks} open mission task(s) in the current branch. Complete or reassign them first.`,
+    };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.zone.updateMany({
+        where: { ownerId: target.id, branchId: fromBranchId },
+        data: { ownerId: null },
+      });
+
+      if (target.role === "TEAM_LEAD") {
+        await tx.userPermissionGrant.updateMany({
+          where: { userId: target.id, branchId: fromBranchId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+
+      await tx.user.update({
+        where: { id: target.id },
+        data: {
+          branchId: input.toBranchId,
+          teamId: input.toTeamId ?? null,
+          ...(target.role === "TEAM_LEAD" ? { role: "PLAYER" as Role } : {}),
+        },
+      });
+
+      await tx.userBranchTransfer.create({
+        data: {
+          userId: target.id,
+          fromBranchId,
+          toBranchId: input.toBranchId,
+          initiatedById: session.id,
+          reason: input.reason?.trim() || null,
+        },
+      });
+    });
+
+    const actor = await prisma.user.findUnique({
+      where: { id: session.id },
+      select: { name: true },
+    });
+
+    await logActivity(session, actor?.name ?? "User", "USER_BRANCH_TRANSFER", {
+      entityType: "User",
+      entityId: target.id,
+      branchId: input.toBranchId,
+      metadata: {
+        targetName: target.name,
+        fromBranchId,
+        toBranchId: input.toBranchId,
+        toTeamId: input.toTeamId ?? null,
+        reason: input.reason ?? null,
+      },
+    });
+
+    return { ok: true };
+  } catch (e) {
+    console.error("[transferPlayerBranch]", e);
+    return { ok: false, error: e instanceof Error ? e.message : "Transfer failed." };
+  }
+}
+
+export async function getTransferBlockers(userId: string): Promise<{
+  openTaskCount: number;
+  ownedZoneCount: number;
+}> {
+  const session = await authorize(["ADMIN", "BRANCH_MANAGER"], "getTransferBlockers");
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { branchId: true, team: { select: { branchId: true } } },
+  });
+  if (!user) return { openTaskCount: 0, ownedZoneCount: 0 };
+  const branchId = user.branchId ?? user.team?.branchId ?? null;
+  if (!branchId) return { openTaskCount: 0, ownedZoneCount: 0 };
+
+  if (session.role === "BRANCH_MANAGER") {
+    if (!session.branchId || session.branchId !== branchId) {
+      throw new UnauthorizedError("You can only check transfer blockers for users in your branch.");
+    }
+  }
+
+  const [openTaskCount, ownedZoneCount] = await Promise.all([
+    prisma.missionTask.count({
+      where: {
+        assigneeId: userId,
+        status: { in: [...OPEN_TASK_STATUSES] },
+        mission: { branchId },
+      },
+    }),
+    prisma.zone.count({ where: { ownerId: userId, branchId } }),
+  ]);
+  return { openTaskCount, ownedZoneCount };
 }
 

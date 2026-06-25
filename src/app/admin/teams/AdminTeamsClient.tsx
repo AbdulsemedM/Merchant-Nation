@@ -18,6 +18,7 @@ import { getTeamsForAdmin, getBranchesForAdmin } from "@/app/actions/users";
 import { PortalLoadingInline } from "@/components/ui/portal-loading";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { getUserFacingErrorMessage } from "@/lib/errors";
+import type { Role } from "@/lib/auth";
 
 type TeamRow = {
   id: string;
@@ -31,8 +32,6 @@ type BranchOption = {
   branchCode: string | null;
   companyName: string;
 };
-
-type Role = "ADMIN" | "BRANCH_MANAGER";
 
 export function AdminTeamsClient({
   initialTeams,

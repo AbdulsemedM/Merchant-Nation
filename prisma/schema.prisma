@@ -19,11 +19,11 @@ model Rank {
 }
 
 model Branch {
-  id              String          @id @default(cuid())
+  id              String                @id @default(cuid())
   name            String
   location        String
-  branchCode      String?         @unique
-  externalId      Int?            @unique
+  branchCode      String?               @unique
+  externalId      Int?                  @unique
   territoryBounds Json?
   dailyReports    DailyReport[]
   flashMissions   FlashMission[]
@@ -32,6 +32,7 @@ model Branch {
   territoryCells  TerritoryCell[]
   users           User[]
   zones           Zone[]
+  permissionGrants UserPermissionGrant[]
 }
 
 model TerritoryCell {
@@ -84,6 +85,10 @@ model User {
   notificationPrefs  UserNotificationPreference?
   streak             UserStreak?
   ownedZones         Zone[]                      @relation("ZoneOwner")
+  permissionGrants   UserPermissionGrant[]       @relation("GrantUser")
+  grantsGiven        UserPermissionGrant[]       @relation("GrantGrantedBy")
+  branchTransfers    UserBranchTransfer[]
+  branchTransfersInitiated UserBranchTransfer[]  @relation("TransferInitiator")
 }
 
 model Zone {
@@ -398,8 +403,49 @@ model InductionDraft {
 
 enum Role {
   PLAYER
+  TEAM_LEAD
   BRANCH_MANAGER
   ADMIN
+}
+
+enum BranchPermission {
+  MANAGE_USERS
+  MANAGE_TEAMS
+  MANAGE_MISSIONS
+  MANAGE_TERRITORY
+  VIEW_REPORTS
+}
+
+model UserPermissionGrant {
+  id            String           @id @default(cuid())
+  userId        String
+  branchId      String
+  permission    BranchPermission
+  grantedById   String
+  teamScopeKey  String           @default("")
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  createdAt     DateTime         @default(now())
+  user          User             @relation("GrantUser", fields: [userId], references: [id], onDelete: Cascade)
+  branch        Branch           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  grantedBy     User             @relation("GrantGrantedBy", fields: [grantedById], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId, permission, teamScopeKey])
+  @@index([userId, branchId])
+}
+
+model UserBranchTransfer {
+  id             String   @id @default(cuid())
+  userId         String
+  fromBranchId   String?
+  toBranchId     String
+  initiatedById  String
+  reason         String?
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  initiatedBy    User     @relation("TransferInitiator", fields: [initiatedById], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 enum ZoneStatus {

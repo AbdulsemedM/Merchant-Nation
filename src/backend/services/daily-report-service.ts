@@ -1,4 +1,4 @@
-import { authorize } from "@/lib/auth";
+import { authorize, authorizeBranchAction } from "@/lib/auth";
 import type { Prisma } from "@prisma/client";
 import * as dailyReportRepo from "@/backend/repositories/daily-report-repository";
 import { getUserById } from "@/backend/repositories/user-repository";
@@ -12,7 +12,7 @@ export type SubmitDailyReportData = {
 export async function submitDailyReport(
   data: SubmitDailyReportData
 ): Promise<{ ok: boolean; error?: string }> {
-  const session = await authorize(["PLAYER", "BRANCH_MANAGER", "ADMIN"], "submitDailyReport");
+  const session = await authorize(["PLAYER", "TEAM_LEAD", "BRANCH_MANAGER", "ADMIN"], "submitDailyReport");
 
   let branchId = session.branchId;
   if (!branchId) {
@@ -49,14 +49,14 @@ export type DailyReportFilters = {
 };
 
 export async function getDailyReports(filters: DailyReportFilters = {}) {
-  const session = await authorize(["ADMIN", "BRANCH_MANAGER"], "getDailyReports");
+  const session = await authorizeBranchAction("VIEW_REPORTS", "getDailyReports");
 
   const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
   const offset = Math.max(filters.offset ?? 0, 0);
 
   const where: Prisma.DailyReportWhereInput = {};
 
-  if (session.role === "BRANCH_MANAGER" && session.branchId) {
+  if ((session.role === "BRANCH_MANAGER" || session.role === "TEAM_LEAD") && session.branchId) {
     where.branchId = session.branchId;
     where.user = { role: "PLAYER" };
   } else if (filters.branchId) {
