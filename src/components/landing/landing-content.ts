@@ -1,170 +1,179 @@
-export const SECTION_IDS = [
-  "operation",
-  "terminal",
-  "command",
-  "advancement",
-  "deploy",
-] as const;
+import {
+  Bell,
+  Building2,
+  Compass,
+  Flame,
+  Map,
+  MapPin,
+  Radar,
+  Settings,
+  ShieldCheck,
+  Target,
+  Trophy,
+  User,
+  type LucideIcon,
+} from "lucide-react";
 
-export type LandingSectionId = (typeof SECTION_IDS)[number];
-
-export const NAV_SECTIONS: {
-  href: `#${LandingSectionId}`;
-  label: string;
-  id: LandingSectionId;
-}[] = [
-  { href: "#operation", label: "Operation", id: "operation" },
-  { href: "#terminal", label: "Field Terminal", id: "terminal" },
-  { href: "#command", label: "Roles", id: "command" },
-  { href: "#advancement", label: "Ranks", id: "advancement" },
-];
-
-export const MARQUEE_PHRASES = [
-  "Scout zones",
-  "+20 XP",
-  "Induct merchants",
-  "+100 XP",
-  "Execute missions",
-  "Capture territory",
-  "Rank up",
-  "Field ops live",
+export const NAV_LINKS = [
+  { label: "Operations", href: "#operations" },
+  { label: "Gameplay", href: "#gameplay" },
+  { label: "Roles", href: "#roles" },
+  { label: "Field Loop", href: "#loop" },
 ] as const;
 
 export const HERO_STATS = [
-  { value: 128, label: "Zones captured" },
-  { value: 94, label: "Merchants active" },
-  { value: 612, label: "Recon reports" },
-  { value: 37, label: "Missions live" },
+  { value: "1,200+", label: "Zones mapped" },
+  { value: "38", label: "Live branches" },
+  { value: "94%", label: "Missions cleared" },
 ] as const;
 
-export type CycleStep = {
-  index: string;
-  op: string;
-  title: string;
-  copy: string;
-  xp: string;
-  xpGhost?: boolean;
-};
+export const TICKER_ITEMS: { icon: LucideIcon; text: string }[] = [
+  { icon: MapPin, text: "Zone Bole-04 CAPTURED" },
+  { icon: Trophy, text: "Meron reached Scout Officer" },
+  { icon: Radar, text: "New recon: Merkato District" },
+  { icon: Flame, text: "Team Adama on a 21-day streak" },
+  { icon: ShieldCheck, text: "Q2 Merchant Drive · 94% cleared" },
+  { icon: Building2, text: "38 branches synced live" },
+];
 
-export const CYCLE_STEPS: CycleStep[] = [
+/** Accent tone for a card icon; maps to the scoped palette in landing.css. */
+export type Tone = "primary" | "accent" | "teal";
+
+export const FEATURES: {
+  icon: LucideIcon;
+  title: string;
+  desc: string;
+  tone: Tone;
+}[] = [
   {
-    index: "01",
-    op: "Recon",
-    title: "Scout",
-    copy: "Tap a cell on the live territory map and file a recon report — business name, category, daily volume, a photo. Thirty seconds in the field.",
-    xp: "+20 XP",
+    icon: Map,
+    title: "Live territory map",
+    desc: "See every zone, branch pin, and merchant lead on one tactical map — colour-coded from UNSEEN to CAPTURED.",
+    tone: "primary",
   },
   {
-    index: "02",
-    op: "Onboard",
-    title: "Induct",
-    copy: "Convert a scouted lead into a registered merchant through a three-step wizard: verify, KYC and products, oath.",
-    xp: "+100 XP",
+    icon: Radar,
+    title: "Scout & recon",
+    desc: "Log new businesses in the field with GPS, photos, and category intel. Earn XP on every transmitted report.",
+    tone: "accent",
   },
   {
-    index: "03",
-    op: "Deploy",
-    title: "Execute",
-    copy: "Accept missions and tasks from your branch manager, then work them from Pending through Submitted to Approved.",
-    xp: "Branch goals",
-    xpGhost: true,
+    icon: Compass,
+    title: "Guided induction",
+    desc: "Turn leads into registered merchants through a three-step KYC wizard — verify, onboard, and take the oath.",
+    tone: "teal",
   },
   {
-    index: "04",
-    op: "Advance",
-    title: "Grow",
-    copy: "Every action earns XP. Climb the rank ladder, build a streak, and see exactly where you stand on the leaderboard.",
-    xp: "Rank up",
-    xpGhost: true,
+    icon: Target,
+    title: "Missions & tasks",
+    desc: "Managers launch campaigns and assign targets. Field staff accept, complete, and submit for approval.",
+    tone: "primary",
+  },
+  {
+    icon: Trophy,
+    title: "Ranks, XP & streaks",
+    desc: "Climb from Scout Cadet to Commander. Keep your daily streak alive and top the branch leaderboard.",
+    tone: "accent",
+  },
+  {
+    icon: Bell,
+    title: "Multi-channel alerts",
+    desc: "Push, Telegram, and WhatsApp notifications keep every officer synced to new tasks and achievements.",
+    tone: "teal",
   },
 ];
 
-export const TERMINAL_SCREENS = [
-  {
-    src: "/images/landing/img-0.png",
-    alt: "Live territory dashboard",
-    title: "The whole territory, live",
-    copy: "Every branch gets a map of its operating area, split into cells that shift colour as they are scouted and captured.",
-  },
-  {
-    src: "/images/landing/img-1.png",
-    alt: "Cell drawer with Scout Zone and Induct Merchant actions",
-    title: "Tap a cell, choose your move",
-    copy: "Scout Zone or Induct Merchant, straight from the map. No menu diving, no separate tool to open.",
-  },
-  {
-    src: "/images/landing/img-2.png",
-    alt: "Recon report form",
-    title: "OP-01: Recon Report",
-    copy: "Category, daily volume, competing services, and a storefront photo — filed in under a minute on a phone.",
-  },
-  {
-    src: "/images/landing/img-3.png",
-    alt: "Branch territory editing",
-    title: "Draw the territory",
-    copy: "Branch managers define the operating area in a few taps, and every officer on the team sees it instantly.",
-  },
-  {
-    src: "/images/landing/img-4.png",
-    alt: "Activity streak and notification settings",
-    title: "Streaks and alerts",
-    copy: "Telegram, WhatsApp, and web push keep the operation moving, alongside a live activity streak.",
-  },
-  {
-    src: "/images/landing/img-5.png",
-    alt: "Contribution heatmap and leaderboard",
-    title: "Heatmap and leaderboard",
-    copy: "A full year of activity at a glance, and exactly where every officer ranks inside the branch.",
-  },
-] as const;
-
-export const ROLES = [
-  {
-    tag: "Field Officer",
-    title: "Player",
-    sub: "Sales officers and scouts",
-    featured: false,
-    items: [
-      "Scout and induct merchants",
-      "Accept and complete tasks",
-      "Submit daily field reports",
-      "Track XP, rank, and streak",
-    ],
-  },
-  {
-    tag: "Field Command",
-    title: "Branch Manager",
-    sub: "Middle management",
-    featured: true,
-    items: [
-      "Everything a Player does",
-      "Define branch territory",
-      "Assign, approve, and delegate",
-      "Manage users and teams",
-    ],
-  },
-  {
-    tag: "Headquarters",
-    title: "Administrator",
-    sub: "Head office and IT",
-    featured: false,
-    items: [
-      "Configure the whole system",
-      "Manage every branch",
-      "Set ranks and categories",
-      "Org-wide reporting",
-    ],
-  },
-] as const;
-
 export const RANKS = [
-  { code: "R1", name: "Cadet", xp: "0 – 500 XP" },
-  { code: "R2", name: "Officer", xp: "500 – 2,000 XP" },
-  { code: "R3", name: "Captain", xp: "2,000 – 3,000 XP" },
-  { code: "R4", name: "General", xp: "3,000+ XP" },
+  { name: "Scout Cadet", active: false },
+  { name: "Scout Officer", active: true },
+  { name: "Field Captain", active: false },
+  { name: "Commander", active: false },
 ] as const;
 
-/** Where the illustrative "you are here" marker sits on the rank ladder. */
-export const LADDER_POSITION = "58%";
+export const XP_PROGRESS = {
+  rank: "Scout Officer",
+  current: 2610,
+  target: 3800,
+  nextRank: "Field Captain",
+} as const;
 
-export const DEPLOY_URL = "merchant-nation-2omx.vercel.app";
+export const LEADERBOARD = [
+  { name: "Meron T.", branch: "Bole", xp: 2840, you: false },
+  { name: "You", branch: "Merkato", xp: 2610, you: true },
+  { name: "Dawit A.", branch: "Adama", xp: 2480, you: false },
+  { name: "Sara K.", branch: "Hawassa", xp: 2210, you: false },
+] as const;
+
+export const ROLES: {
+  icon: LucideIcon;
+  name: string;
+  tagline: string;
+  points: string[];
+  highlight?: boolean;
+}[] = [
+  {
+    icon: User,
+    name: "Field Player",
+    tagline: "Scouts & sales officers",
+    points: [
+      "Scout & induct merchants",
+      "Complete assigned tasks",
+      "Track XP, rank & streaks",
+    ],
+  },
+  {
+    icon: ShieldCheck,
+    name: "Branch Manager",
+    tagline: "Territory & oversight",
+    points: [
+      "Draw territory boundaries",
+      "Create missions & assign tasks",
+      "Approve field submissions",
+    ],
+    highlight: true,
+  },
+  {
+    icon: Settings,
+    name: "Administrator",
+    tagline: "Organization-wide control",
+    points: [
+      "Manage all branches & users",
+      "Configure ranks & categories",
+      "View nationwide summary",
+    ],
+  },
+];
+
+export const LOOP_STEPS: {
+  icon: LucideIcon;
+  step: string;
+  title: string;
+  desc: string;
+}[] = [
+  {
+    icon: Radar,
+    step: "01",
+    title: "Scout",
+    desc: "Discover merchants on the map and transmit recon intel.",
+  },
+  {
+    icon: Compass,
+    step: "02",
+    title: "Induct",
+    desc: "Onboard leads through the guided KYC wizard.",
+  },
+  {
+    icon: Target,
+    step: "03",
+    title: "Complete",
+    desc: "Clear assigned missions and submit for approval.",
+  },
+  {
+    icon: Trophy,
+    step: "04",
+    title: "Level up",
+    desc: "Earn XP, climb ranks, and capture the territory.",
+  },
+];
+
+export const FOOTER_TAGLINE = "\u201cBank Smarter, Live Better.\u201d — Cooperative Bank of Oromia";
