@@ -5,10 +5,13 @@ import { SECTION_IDS } from "./landing-content";
 
 const GRID_COLS = 16;
 const GRID_ROWS = 9;
-const SWEEP_INTERVAL_MS = 220;
-/** Cells stay lit for a few sweep ticks before cooling back down. */
-const HOT_TICKS = 3;
-const COOL_TICKS = 9;
+const PULSE_INTERVAL_MS = 180;
+/** How many cells light up each tick. */
+const PULSE_BATCH = 4;
+/** Ticks a cell stays hot before cooling to captured. */
+const HOT_TICKS = 4;
+/** Extra ticks before a captured cell fades out entirely. */
+const COOL_TICKS = 14;
 
 export function useLandingEffects() {
   useEffect(() => {
@@ -51,30 +54,32 @@ export function useLandingEffects() {
           if ((i * 7) % 11 < 3) cell.classList.add("captured");
         });
       } else {
-        // Sweep diagonally so the grid reads as territory being claimed.
-        const diagonals = GRID_COLS + GRID_ROWS - 1;
-        const byDiagonal: HTMLElement[][] = Array.from({ length: diagonals }, () => []);
-        cells.forEach((cell, i) => {
-          const d = (i % GRID_COLS) + Math.floor(i / GRID_COLS);
-          byDiagonal[d].push(cell);
-        });
+        // Random cells light up like territory being claimed across the map.
+        type Lit = { cell: HTMLElement; age: number };
+        const lit: Lit[] = [];
 
-        let tick = 0;
         const timer = window.setInterval(() => {
-          const head = tick % (diagonals + COOL_TICKS);
+          // Age existing lit cells: hot → captured → fade out.
+          for (let i = lit.length - 1; i >= 0; i--) {
+            const entry = lit[i];
+            entry.age++;
+            if (entry.age === HOT_TICKS) {
+              entry.cell.classList.remove("captured-hot");
+            } else if (entry.age >= COOL_TICKS) {
+              entry.cell.classList.remove("captured");
+              lit.splice(i, 1);
+            }
+          }
 
-          byDiagonal[head]?.forEach((cell) => {
+          // Light a random batch that aren't already lit.
+          const free = cells.filter((c) => !c.classList.contains("captured"));
+          for (let n = 0; n < PULSE_BATCH && free.length > 0; n++) {
+            const pick = Math.floor(Math.random() * free.length);
+            const cell = free.splice(pick, 1)[0];
             cell.classList.add("captured", "captured-hot");
-          });
-          byDiagonal[head - HOT_TICKS]?.forEach((cell) => {
-            cell.classList.remove("captured-hot");
-          });
-          byDiagonal[head - COOL_TICKS]?.forEach((cell) => {
-            cell.classList.remove("captured");
-          });
-
-          tick++;
-        }, SWEEP_INTERVAL_MS);
+            lit.push({ cell, age: 0 });
+          }
+        }, PULSE_INTERVAL_MS);
 
         cleanups.push(() => window.clearInterval(timer));
       }
