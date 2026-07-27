@@ -122,7 +122,7 @@ export function Hero() {
           </div>
 
           {/* Floating rank badge */}
-          <div className="glow-ring absolute -left-2 top-6 hidden rounded-2xl border border-border/70 bg-card/90 p-3 backdrop-blur-md sm:block lg:-left-6">
+          <div className="glow-ring absolute -left-2 top-24 hidden rounded-2xl border border-border/70 bg-card/90 p-3 backdrop-blur-md sm:block lg:-left-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15">
                 <Trophy className="h-5 w-5 text-primary" />

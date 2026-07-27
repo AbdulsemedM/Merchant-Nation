@@ -17,28 +17,28 @@ export function SiteHeader() {
             MN
           </span>
           <span className="flex flex-col leading-tight">
-            <span className="text-sm font-semibold tracking-tight text-foreground">
+            <span className="whitespace-nowrap text-sm font-semibold tracking-tight text-foreground">
               Merchant Nation Command
             </span>
-            <span className="hidden text-[10px] uppercase tracking-wider text-muted-foreground sm:block">
+            <span className="hidden whitespace-nowrap text-[10px] uppercase tracking-wider text-muted-foreground sm:block">
               Cooperative Bank of Oromia
             </span>
           </span>
         </a>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-8 lg:flex">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               {link.label}
             </a>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-3 lg:flex">
           <Button asChild variant="ghost" className="text-muted-foreground hover:text-foreground">
             <Link href="/login">Sign in</Link>
           </Button>
@@ -52,14 +52,14 @@ export function SiteHeader() {
           aria-label="Toggle menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-foreground md:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-foreground lg:hidden"
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
       {open && (
-        <div className="border-t border-border/60 bg-background/95 px-4 py-4 md:hidden">
+        <div className="border-t border-border/60 bg-background/95 px-4 py-4 lg:hidden">
           <nav className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
               <a
