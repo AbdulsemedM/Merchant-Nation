@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getServerAuthSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getCurrentUser, getLeaderboardForDashboard, getProfileStats } from "@/app/actions/users";
@@ -6,9 +7,25 @@ import { getTerritoryDashboardStats } from "@/app/actions/mission";
 import { getBranchTerritoryForMember, getTerritoryCellsForMember, getAllBranchTerritoriesForAdmin, getNeighboringBranchTerritories } from "@/app/actions/branch-territory";
 import { xpProgress, xpToNextRank, nextRankLabel } from "@/lib/rank";
 import { TerritoryDashboard } from "@/components/territory/TerritoryDashboard";
+import { LandingPage } from "@/components/landing/LandingPage";
 import { isGoogleMapsConfigured } from "@/lib/google-maps";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await getServerAuthSession();
+  if (!session) {
+    return {
+      title: "Merchant Nation Command — Cooperative Bank of Oromia",
+      description:
+        "Scout territory, induct merchants, run missions, and rank up — Merchant Nation Command for Cooperative Bank of Oromia field operations.",
+    };
+  }
+  return {
+    title: "Merchant Nation Command",
+    description: "Gamified field sales app for scouting and onboarding merchants",
+  };
+}
 
 function buildRankLabels(ranks: Awaited<ReturnType<typeof getRanks>>): Record<string, string> {
   const sorted = [...ranks].sort(
@@ -23,7 +40,7 @@ function buildRankLabels(ranks: Awaited<ReturnType<typeof getRanks>>): Record<st
 
 export default async function HomePage() {
   const session = await getServerAuthSession();
-  if (!session) redirect("/login");
+  if (!session) return <LandingPage />;
 
   const user = await getCurrentUser(session.id);
   if (!user) redirect("/login");

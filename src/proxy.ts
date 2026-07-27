@@ -105,6 +105,11 @@ export async function proxy(request: NextRequest) {
     return addCors(NextResponse.redirect(new URL("/", request.url)), origin);
   }
 
+  // Public landing page at `/` for logged-out visitors; auth enforced in page.tsx.
+  if (pathname === "/") {
+    return addCors(NextResponse.next(), origin);
+  }
+
   if (pathname === "/change-password") {
     const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
     if (!token) {

@@ -11,7 +11,7 @@ export function ConditionalAppLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const { role, branchPermissions } = useUserRole();
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || (pathname === "/" && role === null)) {
     return <>{children}</>;
   }
 
