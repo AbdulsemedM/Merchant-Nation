@@ -14,6 +14,7 @@ const PUBLIC_API_PATHS = new Set([
   "/api/notifications/facebook/webhook",
   "/api/notifications/whatsapp/webhook",
   "/api/notifications/scheduled",
+  "/api/webhooks/coop-directory",
 ]);
 
 /** PWA assets in /public must be readable without a session. */

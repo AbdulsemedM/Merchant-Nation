@@ -6,6 +6,11 @@ import { getCurrentUser } from "@/backend/services/users-service";
 import { getRanks } from "@/backend/services/ranks-service";
 import { logActivity } from "@/backend/services/activity-log-service";
 import {
+  directory,
+  getDirectoryAppCode,
+  type DirectoryOverview,
+} from "@/backend/services/coop-directory-client";
+import {
   isNationalIdDuplicateError,
   nationalIdDuplicateMessage,
   validateNationalId,
@@ -14,6 +19,180 @@ import {
 const XP_INDUCT = 100;
 const XP_CAPTURE_ZONE = 500;
 const ZONE_CAPTURE_THRESHOLD = 10;
+
+type DirectorySyncMerchant = {
+  id: string;
+  ownerName: string;
+  phoneNumber: string;
+  tinNumber: string | null;
+  nationalIdNumber: string;
+  merchantAccountNumber: string;
+  globalMerchantId: string | null;
+};
+
+/**
+ * Register or refresh a merchant in the Coop directory.
+ * Fail-safe: never throws; local induction/updates must still succeed.
+ */
+async function syncMerchantToDirectory(
+  merchant: DirectorySyncMerchant,
+  businessName: string
+): Promise<{ globalMerchantId: string | null; error?: string }> {
+  if (!directory.configured) {
+    return { globalMerchantId: merchant.globalMerchantId };
+  }
+
+  const appCode = getDirectoryAppCode();
+  const accountNumber = merchant.merchantAccountNumber?.trim() || undefined;
+
+  try {
+    if (accountNumber) {
+      const owner = await directory.lookupAccountOwner(accountNumber);
+      if (
+        owner?.linked &&
+        owner.ownerMerchantId &&
+        merchant.globalMerchantId &&
+        owner.ownerMerchantId !== merchant.globalMerchantId
+      ) {
+        console.warn(
+          "[directory] account already linked to another merchant",
+          accountNumber,
+          owner.ownerMerchantId
+        );
+      }
+    }
+
+    const created = await directory.findOrCreate({
+      appCode,
+      externalId: merchant.id,
+      businessName,
+      ownerName: merchant.ownerName,
+      phone: merchant.phoneNumber,
+      tinNumber: merchant.tinNumber ?? undefined,
+      accountNumber,
+      accountHolderName: businessName,
+      verifiedAgainstBank: Boolean(accountNumber),
+    });
+
+    const globalMerchantId = created?.id ?? merchant.globalMerchantId;
+    if (!globalMerchantId) {
+      return { globalMerchantId: null, error: "find-or-create returned no id" };
+    }
+
+    try {
+      await directory.updateIdentity(globalMerchantId, {
+        ownerName: merchant.ownerName,
+        phone: merchant.phoneNumber,
+        businessName,
+      });
+    } catch (e) {
+      console.warn("[directory] updateIdentity failed", e);
+    }
+
+    try {
+      await directory.saveLegalInfo(globalMerchantId, {
+        nationalId: merchant.nationalIdNumber,
+        tinNumber: merchant.tinNumber ?? undefined,
+      });
+    } catch (e) {
+      console.warn("[directory] saveLegalInfo failed", e);
+    }
+
+    await prisma.merchant.update({
+      where: { id: merchant.id },
+      data: {
+        globalMerchantId,
+        directorySyncedAt: new Date(),
+        directoryVerificationStatus: created?.verificationStatus ?? undefined,
+      },
+    });
+
+    return { globalMerchantId };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[directory] syncMerchantToDirectory failed", merchant.id, message);
+    return { globalMerchantId: merchant.globalMerchantId, error: message };
+  }
+}
+
+/**
+ * Push KYC changes for an already-linked merchant (write-through).
+ * Best-effort; does not throw.
+ */
+async function pushKycToDirectory(
+  merchant: DirectorySyncMerchant & { globalMerchantId: string },
+  businessName: string,
+  previousAccountNumber?: string
+): Promise<void> {
+  if (!directory.configured) return;
+
+  const id = merchant.globalMerchantId;
+  try {
+    await directory.updateIdentity(id, {
+      ownerName: merchant.ownerName,
+      phone: merchant.phoneNumber,
+      businessName,
+    });
+  } catch (e) {
+    console.warn("[directory] pushKyc updateIdentity failed", e);
+  }
+
+  try {
+    await directory.saveLegalInfo(id, {
+      nationalId: merchant.nationalIdNumber,
+      tinNumber: merchant.tinNumber ?? undefined,
+    });
+  } catch (e) {
+    console.warn("[directory] pushKyc saveLegalInfo failed", e);
+  }
+
+  const accountNumber = merchant.merchantAccountNumber?.trim();
+  if (accountNumber && accountNumber !== (previousAccountNumber ?? "").trim()) {
+    try {
+      const owner = await directory.lookupAccountOwner(accountNumber);
+      if (owner?.linked && owner.ownerMerchantId && owner.ownerMerchantId !== id) {
+        console.warn(
+          "[directory] cannot add bank account — owned by another merchant",
+          accountNumber
+        );
+      } else if (!owner?.linked) {
+        await directory.addBankAccount(id, {
+          accountNumber,
+          accountHolderName: businessName,
+          primary: true,
+          verifiedAgainstBank: true,
+        });
+      }
+    } catch (e) {
+      console.warn("[directory] pushKyc addBankAccount failed", e);
+    }
+  }
+
+  try {
+    await prisma.merchant.update({
+      where: { id: merchant.id },
+      data: { directorySyncedAt: new Date() },
+    });
+  } catch (e) {
+    console.warn("[directory] failed to stamp directorySyncedAt", e);
+  }
+}
+
+/** Enrich a local merchant with directory overview (fail-open). */
+export async function hydrateMerchantFromDirectory(globalMerchantId: string | null | undefined): Promise<{
+  verificationStatus: string | null;
+  overview: DirectoryOverview | null;
+}> {
+  if (!globalMerchantId || !directory.configured) {
+    return { verificationStatus: null, overview: null };
+  }
+  const overview = await directory.getOverview(globalMerchantId);
+  const verificationStatus =
+    overview?.merchant?.verificationStatus ??
+    overview?.legal?.verificationStatus ??
+    null;
+  return { verificationStatus, overview };
+}
 
 async function getOrCreateDevUserId(): Promise<string> {
   const envId = process.env.NEXT_PUBLIC_DEV_USER_ID;
@@ -193,6 +372,27 @@ export async function completeInduction(
       data: { xp: user.xp + xpToAdd, rank: newRank },
     });
 
+    // Best-effort Coop directory registration — never blocks local induction.
+    const directorySync = await syncMerchantToDirectory(
+      {
+        id: lead.merchant.id,
+        ownerName: lead.merchant.ownerName,
+        phoneNumber: lead.merchant.phoneNumber,
+        tinNumber: lead.merchant.tinNumber,
+        nationalIdNumber: lead.merchant.nationalIdNumber,
+        merchantAccountNumber: lead.merchant.merchantAccountNumber,
+        globalMerchantId: lead.merchant.globalMerchantId,
+      },
+      lead.businessName
+    );
+    if (directorySync.error) {
+      console.warn(
+        "[directory] induction completed locally; directory sync pending",
+        lead.merchant.id,
+        directorySync.error
+      );
+    }
+
     if (session) {
       const zone = lead.zoneId
         ? await prisma.zone.findUnique({
@@ -210,7 +410,11 @@ export async function completeInduction(
         entityType: "Merchant",
         entityId: lead.merchant.id,
         branchId: zone?.branchId ?? null,
-        metadata: { leadId: input.leadId, citizenNumber },
+        metadata: {
+          leadId: input.leadId,
+          citizenNumber,
+          globalMerchantId: directorySync.globalMerchantId,
+        },
       });
     }
 
@@ -351,6 +555,9 @@ export type MerchantDetail = {
   citizenNumber: string;
   onboardingDate: Date;
   oathSignatureUrl: string;
+  globalMerchantId: string | null;
+  directorySyncedAt: Date | null;
+  directoryVerificationStatus: string | null;
   inductedBy: { id: string; name: string };
   deploymentAssets: {
     id: string;
@@ -437,6 +644,23 @@ export async function getMerchantDetail(merchantId: string): Promise<MerchantDet
 
   if (session.role !== "ADMIN" && merchantBranchId !== effectiveBranchId) return null;
 
+  const hydrated = await hydrateMerchantFromDirectory(merchant.globalMerchantId);
+  const directoryVerificationStatus =
+    hydrated.verificationStatus ?? merchant.directoryVerificationStatus ?? null;
+
+  if (
+    hydrated.verificationStatus &&
+    hydrated.verificationStatus !== merchant.directoryVerificationStatus &&
+    merchant.globalMerchantId
+  ) {
+    await prisma.merchant
+      .update({
+        where: { id: merchant.id },
+        data: { directoryVerificationStatus: hydrated.verificationStatus },
+      })
+      .catch(() => undefined);
+  }
+
   return {
     id: merchant.id,
     ownerName: merchant.ownerName,
@@ -448,6 +672,9 @@ export async function getMerchantDetail(merchantId: string): Promise<MerchantDet
     citizenNumber: merchant.citizenNumber,
     onboardingDate: merchant.onboardingDate,
     oathSignatureUrl: merchant.oathSignatureUrl,
+    globalMerchantId: merchant.globalMerchantId ?? null,
+    directorySyncedAt: merchant.directorySyncedAt ?? null,
+    directoryVerificationStatus,
     inductedBy: { id: merchant.inductedBy.id, name: merchant.inductedBy.name },
     deploymentAssets: merchant.deploymentAssets.map((ma) => ({
       id: ma.deploymentAsset.id,
@@ -513,7 +740,10 @@ export async function updateMerchantDetails(
     });
     if (duplicate) return { ok: false, error: nationalIdDuplicateMessage };
 
-    await prisma.merchant.update({
+    const previousAccountNumber = detail.merchantAccountNumber;
+    const previousGlobalId = detail.globalMerchantId;
+
+    const updated = await prisma.merchant.update({
       where: { id: merchantId },
       data: {
         ownerName: data.ownerName.trim(),
@@ -523,7 +753,39 @@ export async function updateMerchantDetails(
         phoneNumber: data.phoneNumber.trim(),
         merchantAccountNumber: data.merchantAccountNumber?.trim() ?? "",
       },
+      include: { lead: { select: { businessName: true } } },
     });
+
+    // Write-through to Coop directory when linked; otherwise try find-or-create.
+    const businessName = updated.lead?.businessName ?? updated.ownerName;
+    if (previousGlobalId || updated.globalMerchantId) {
+      await pushKycToDirectory(
+        {
+          id: updated.id,
+          ownerName: updated.ownerName,
+          phoneNumber: updated.phoneNumber,
+          tinNumber: updated.tinNumber,
+          nationalIdNumber: updated.nationalIdNumber,
+          merchantAccountNumber: updated.merchantAccountNumber,
+          globalMerchantId: updated.globalMerchantId ?? previousGlobalId!,
+        },
+        businessName,
+        previousAccountNumber
+      );
+    } else {
+      await syncMerchantToDirectory(
+        {
+          id: updated.id,
+          ownerName: updated.ownerName,
+          phoneNumber: updated.phoneNumber,
+          tinNumber: updated.tinNumber,
+          nationalIdNumber: updated.nationalIdNumber,
+          merchantAccountNumber: updated.merchantAccountNumber,
+          globalMerchantId: null,
+        },
+        businessName
+      );
+    }
 
     // Update deployment assets: remove only those no longer in the list; add new ones. Preserve onboardedAt on existing links.
     const existing = await prisma.merchantDeploymentAsset.findMany({

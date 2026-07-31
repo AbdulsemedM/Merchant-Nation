@@ -141,6 +141,11 @@ model Merchant {
   merchantAccountNumber String
   oathSignatureUrl      String
   citizenNumber         String
+  /// Coop Merchant Platform global UUID; null until directory sync succeeds.
+  globalMerchantId      String?                   @unique
+  directorySyncedAt     DateTime?
+  /// Cached from platform / webhooks: UNVERIFIED | PENDING | VERIFIED | REJECTED
+  directoryVerificationStatus String?
   inductedById          String
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "import:locations": "node scripts/import-locations.mjs",
+    "directory:backfill": "node scripts/backfill-global-merchant-ids.mjs",
     "db:reset-to-seed": "node scripts/reset-to-seed.mjs --confirm",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate"
