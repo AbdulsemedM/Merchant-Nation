@@ -15,19 +15,20 @@ export function CtaFooter() {
             </div>
             <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">
-                <Smartphone className="h-3.5 w-3.5" /> Installs as a PWA — no app store
+                <Smartphone className="h-3.5 w-3.5" /> Internal tool · Installs as a PWA
               </div>
               <h2 className="mt-6 text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-                Deploy your team to the field today
+                Built for Coop staff — from HQ to the branch
               </h2>
               <p className="mt-4 text-pretty text-lg text-muted-foreground">
-                Join Cooperative Bank of Oromia officers turning every street into captured
-                territory. Growth through cooperation starts here.
+                Merchant Nation is for Cooperative Bank of Oromia administrators, branch managers,
+                and branch staff. Scout merchants, run inductions, and track territory — not open to
+                the public.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="group h-12 px-7 text-base font-semibold">
                   <Link href="/login">
-                    Launch command center
+                    Staff sign in
                     <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
@@ -37,7 +38,7 @@ export function CtaFooter() {
                   variant="outline"
                   className="h-12 border-border bg-transparent px-7 text-base font-semibold hover:bg-secondary"
                 >
-                  <a href="#operations">Talk to operations</a>
+                  <a href="#roles">See staff roles</a>
                 </Button>
               </div>
             </div>

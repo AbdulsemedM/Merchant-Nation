@@ -113,8 +113,8 @@ export const ROLES: {
 }[] = [
   {
     icon: User,
-    name: "Field Player",
-    tagline: "Scouts & sales officers",
+    name: "Branch Staff",
+    tagline: "Field officers & scouts",
     points: [
       "Scout & induct merchants",
       "Complete assigned tasks",
@@ -124,9 +124,9 @@ export const ROLES: {
   {
     icon: ShieldCheck,
     name: "Branch Manager",
-    tagline: "Territory & oversight",
+    tagline: "Branch leadership & oversight",
     points: [
-      "Draw territory boundaries",
+      "Define territory boundaries",
       "Create missions & assign tasks",
       "Approve field submissions",
     ],
@@ -135,11 +135,11 @@ export const ROLES: {
   {
     icon: Settings,
     name: "Administrator",
-    tagline: "Organization-wide control",
+    tagline: "HQ & organization-wide control",
     points: [
-      "Manage all branches & users",
+      "Manage all branches & staff users",
       "Configure ranks & categories",
-      "View nationwide summary",
+      "View nationwide operational summary",
     ],
   },
 ];

@@ -6,11 +6,14 @@ export function Roles() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <span className="text-sm font-semibold uppercase tracking-widest text-primary">
-            Built for every rank
+            Coop staff only
           </span>
           <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            One platform, three points of view
+            Admin, managers, and branch teams
           </h2>
+          <p className="mt-3 text-pretty text-muted-foreground">
+            Access is for Cooperative Bank of Oromia staff — not merchants or outside parties.
+          </p>
         </div>
 
         <div className="mt-14 grid gap-5 md:grid-cols-3">

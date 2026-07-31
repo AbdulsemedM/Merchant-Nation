@@ -24,25 +24,25 @@ export function Hero() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-70" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
             </span>
-            SYSTEM ACTIVE · ADDIS ABABA THEATER
+            INTERNAL · COOP BANK OF OROMIA STAFF
           </div>
 
           <h1 className="mt-6 text-pretty text-5xl font-bold leading-[0.95] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-            Claim the map.
+            Field work for
             <br />
-            <span className="text-glow text-primary">Grow the nation.</span>
+            <span className="text-glow text-primary">Coop officers.</span>
           </h1>
 
           <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
-            Merchant Nation Command turns field banking into a mission. Scout merchants, capture
-            territory, and level up your rank — the gamified command center for Cooperative Bank of
-            Oromia field teams.
+            Merchant Nation is the staff platform for Cooperative Bank of Oromia — administrators,
+            branch managers, and branch teams. Scout merchants, complete inductions, assign missions,
+            and track growth across your territory.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild size="lg" className="group h-12 px-6 text-base font-semibold">
               <Link href="/login">
-                Start your first mission
+                Staff sign in
                 <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
@@ -52,7 +52,7 @@ export function Hero() {
               variant="outline"
               className="h-12 border-border bg-secondary/40 px-6 text-base font-semibold hover:bg-secondary"
             >
-              <a href="#loop">Watch the field loop</a>
+              <a href="#roles">See staff roles</a>
             </Button>
           </div>
 
