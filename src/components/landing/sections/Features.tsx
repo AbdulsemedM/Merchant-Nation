@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { FEATURES, type Tone } from "../landing-content";
 
 const toneMap: Record<Tone, string> = {
@@ -9,21 +10,33 @@ const toneMap: Record<Tone, string> = {
 export function Features() {
   return (
     <section id="operations" className="relative py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="text-sm font-semibold uppercase tracking-widest text-primary">
-            The arsenal
-          </span>
-          <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Everything a field team needs, in one command center
-          </h2>
-          <p className="mt-4 text-pretty text-lg text-muted-foreground">
-            Built for the way Cooperative Bank of Oromia works on the ground — fast, mobile, and
-            mission-driven.
-          </p>
+      <div className="landing-shell">
+        <div className="grid items-end gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+          <div>
+            <span className="text-sm font-semibold uppercase tracking-widest text-primary">
+              The arsenal
+            </span>
+            <h2 className="mt-3 max-w-2xl text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl xl:text-5xl">
+              Everything a field team needs, in one command center
+            </h2>
+            <p className="mt-4 max-w-prose text-pretty text-lg text-muted-foreground">
+              Built for the way Cooperative Bank of Oromia works on the ground — fast, mobile, and
+              mission-driven.
+            </p>
+          </div>
+          <div className="relative overflow-hidden rounded-2xl border border-border/70">
+            <Image
+              src="/images/landing/img-1.png"
+              alt="Territory operations overview"
+              width={1200}
+              height={720}
+              className="h-auto w-full object-cover"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/50 to-transparent" />
+          </div>
         </div>
 
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-3">
           {FEATURES.map((f) => (
             <div
               key={f.title}

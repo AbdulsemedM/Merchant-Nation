@@ -1,9 +1,7 @@
 "use client";
 
-import Image from "next/image";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { cn } from "@/lib/utils";
-
-const LOGO_PATH = "/images/Cooperative_Bank_of_Oromia.png";
 
 const LINES = [
   "INITIALIZING SECURE CHANNEL",
@@ -74,13 +72,14 @@ export function PortalLoading({
             className="relative flex h-14 w-14 shrink-0 items-center justify-center"
             style={{ transform: "rotate(-45deg)" }}
           >
-            <Image
-              src={LOGO_PATH}
-              alt="Merchant Nation"
+            <BrandMark
+              variant="icon"
+              surface="onDark"
               width={56}
               height={56}
-              className="object-contain"
+              className="h-14 w-14"
               priority
+              alt="Merchant Nation"
             />
           </div>
         </div>
@@ -152,12 +151,13 @@ export function PortalLoadingInline({ className }: { className?: string }) {
       aria-label="Loading"
     >
       <div className="relative flex h-10 w-10 shrink-0 items-center justify-center">
-        <Image
-          src={LOGO_PATH}
-          alt=""
+        <BrandMark
+          variant="icon"
+          surface="onDark"
           width={40}
           height={40}
-          className="animate-pulse object-contain opacity-90"
+          className="animate-pulse opacity-90"
+          alt=""
         />
       </div>
       <p className="text-[10px] tracking-widest text-primary/80 uppercase">

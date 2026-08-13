@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,11 +15,11 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/brand/BrandMark";
 
 const SIDEBAR_WIDTH = 240;
 const SIDEBAR_COLLAPSED_WIDTH = 64;
 const SIDEBAR_STORAGE_KEY = "sidebar-collapsed";
-const LOGO_PATH = "/images/Cooperative_Bank_of_Oromia.png";
 
 function SidebarNav({
   collapsed = false,
@@ -139,17 +138,18 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
               collapsed ? "px-2 pb-3" : "gap-2 px-4 pb-4"
             )}
           >
-            <Image
-              src={LOGO_PATH}
-              alt="Merchant Nation"
-              width={collapsed ? 40 : 120}
-              height={collapsed ? 40 : 64}
-              className={cn(
-                "h-auto object-contain",
-                collapsed ? "w-10" : "w-full max-w-[140px]"
-              )}
-              priority
-            />
+            {collapsed ? (
+              <BrandMark variant="icon" surface="onDark" width={40} height={40} className="w-10" priority />
+            ) : (
+              <BrandMark
+                variant="horizontal"
+                surface="onDark"
+                width={180}
+                height={44}
+                className="w-full max-w-[180px]"
+                priority
+              />
+            )}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto overflow-x-hidden pt-2">
@@ -175,12 +175,12 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
             style={{ marginLeft: 0, marginTop: 0 }}
           >
             <DrawerHeader className="flex flex-col items-center gap-2 border-b border-border py-4">
-              <Image
-                src={LOGO_PATH}
-                alt="Merchant Nation"
-                width={120}
-                height={64}
-                className="h-auto w-full max-w-[140px] object-contain"
+              <BrandMark
+                variant="horizontal"
+                surface="onDark"
+                width={180}
+                height={44}
+                className="w-full max-w-[180px]"
               />
               <DrawerTitle className="font-mono font-semibold">Merchant Nation</DrawerTitle>
             </DrawerHeader>

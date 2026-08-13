@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { NAV_LINKS } from "../landing-content";
 
 export function SiteHeader() {
@@ -11,19 +12,24 @@ export function SiteHeader() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-background/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="landing-shell flex h-16 items-center justify-between">
         <a href="#top" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            MN
-          </span>
-          <span className="flex flex-col leading-tight">
-            <span className="whitespace-nowrap text-sm font-semibold tracking-tight text-foreground">
-              Merchant Nation Command
-            </span>
-            <span className="hidden whitespace-nowrap text-[10px] uppercase tracking-wider text-muted-foreground sm:block">
-              Cooperative Bank of Oromia
-            </span>
-          </span>
+          <BrandMark
+            variant="icon"
+            surface="onDark"
+            width={36}
+            height={36}
+            className="h-9 w-9 shrink-0 lg:hidden"
+            priority
+          />
+          <BrandMark
+            variant="horizontal"
+            surface="onDark"
+            width={200}
+            height={40}
+            className="hidden h-9 w-auto max-w-[200px] lg:block"
+            priority
+          />
         </a>
 
         <nav className="hidden items-center gap-8 lg:flex">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { BrandMark } from "@/components/brand/BrandMark";
 
 const MESSAGES = [
   {
@@ -115,6 +116,10 @@ export function LoginHeroPanel() {
         <div className="pointer-events-none absolute right-2 top-2 h-4 w-4 border-r-2 border-t-2 border-primary/60" />
         <div className="pointer-events-none absolute bottom-2 left-2 h-4 w-4 border-b-2 border-l-2 border-primary/60" />
         <div className="pointer-events-none absolute right-2 bottom-2 h-4 w-4 border-b-2 border-r-2 border-primary/60" />
+
+        <div className="relative mb-4 flex justify-center md:mb-5 md:justify-start">
+          <BrandMark variant="icon" surface="onDark" width={44} height={44} className="h-11 w-11" />
+        </div>
 
         {/* Secure access badge */}
         <div className="relative mb-4 flex items-center gap-2 md:mb-5">

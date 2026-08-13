@@ -45,6 +45,38 @@
   color-scheme: dark;
 }
 
+/* Shared content shell — wider than max-w-7xl so xl/ultrawide fills the frame */
+.landing-page .landing-shell {
+  width: 100%;
+  max-width: min(90rem, 100%);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .landing-page .landing-shell {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-page .landing-shell {
+    padding-inline: 2rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .landing-page .landing-shell {
+    padding-inline: 3rem;
+  }
+}
+
+@media (min-width: 1600px) {
+  .landing-page .landing-shell {
+    max-width: 100rem;
+  }
+}
+
 /* --------------------------------------------------------------------------
    Decorative utilities (ported from the reference design)
    -------------------------------------------------------------------------- */
@@ -122,6 +154,29 @@
   animation: landing-float-y 6s ease-in-out infinite;
 }
 
+@keyframes landing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-page .animate-fade-up {
+  animation: landing-fade-up 0.7s ease-out both;
+}
+
+.landing-page .animate-fade-up-delay {
+  animation: landing-fade-up 0.7s ease-out 0.15s both;
+}
+
+.landing-page .animate-fade-up-delay-2 {
+  animation: landing-fade-up 0.7s ease-out 0.3s both;
+}
+
 .landing-page {
   scroll-behavior: smooth;
 }
@@ -138,6 +193,9 @@
   .landing-page .animate-marquee,
   .landing-page .animate-pulse-pin,
   .landing-page .animate-float-y,
+  .landing-page .animate-fade-up,
+  .landing-page .animate-fade-up-delay,
+  .landing-page .animate-fade-up-delay-2,
   .landing-page .animate-ping {
     animation: none !important;
   }

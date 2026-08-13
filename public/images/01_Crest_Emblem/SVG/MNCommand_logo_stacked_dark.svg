@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 620">
+  <defs>
+    <linearGradient id="shieldFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00ADEF"/>
+      <stop offset="100%" stop-color="#0078A8"/>
+    </linearGradient>
+    <linearGradient id="shieldGloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.30"/>
+      <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0.02"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    </defs>
+  <g transform="translate(232.276,47.503) scale(1.23103)">
+    <path d="M24,16 L216,16 L216,128 C216,176 151.0,211 120.0,248 C89.0,211 24,176 24,128 Z" fill="#0B2540"/>
+<path d="M35,27 L205,27 L205,133 C205,181 151.0,216 120.0,236 C89.0,216 35,181 35,133 Z" fill="url(#shieldFill)"/>
+<path d="M35,27 L205,27 L205,100 C205,148 151.0,183 120.0,150 C89.0,183 35,148 35,100 Z" fill="url(#shieldGloss)"/>
+<path d="M35,27 L205,27 L205,133 C205,181 151.0,216 120.0,236 C89.0,216 35,181 35,133 Z" fill="none" stroke="#0B2540" stroke-opacity="0.18" stroke-width="1.5"/>
+<rect x="49" y="52" width="142" height="27" rx="2" fill="#0B2540" fill-opacity="0.92"/>
+<rect x="49" y="52" width="142" height="3" fill="#00ADEF" fill-opacity="0.55"/>
+<rect x="49" y="76" width="142" height="3" fill="#0B2540" fill-opacity="0.55"/>
+<path d="M120.00,49.00 L124.38,61.62 L137.00,66.00 L124.38,70.38 L120.00,83.00 L115.62,70.38 L103.00,66.00 L115.62,61.62 Z" fill="#FFFFFF"/>
+<g transform="translate(70,128)">
+  <path d="M50,6 C70.33,6 87,22.67 87,43 C87,74 50,96 50,96 C50,96 13,74 13,43 C13,22.67 29.67,6 50,6 Z" fill="#FFFFFF"/>
+  <circle cx="50" cy="41" r="15.5" fill="#0B2540"/>
+  <circle cx="50" cy="41" r="15.5" fill="none" stroke="#00ADEF" stroke-width="2"/>
+</g>
+  </g>
+  <text x="380.0" y="428" text-anchor="middle" font-family="DejaVu Sans Condensed" font-weight="bold"
+        font-size="46" letter-spacing="3" fill="#FFFFFF">MERCHANT NATION</text>
+  <text x="380.0" y="479.5" text-anchor="middle" font-family="DejaVu Sans Condensed" font-weight="bold"
+        font-size="56" letter-spacing="3" fill="#00ADEF">COMMAND</text>
+  <rect x="220.0" y="494.1" width="320" height="4" fill="#00ADEF"/>
+  <text x="380.0" y="526.1" text-anchor="middle" font-family="Liberation Mono" font-weight="bold"
+        font-size="15" letter-spacing="4" fill="#9FC7DE">FIELD OPERATIONS PLATFORM</text>
+</svg>

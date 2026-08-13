@@ -1,3 +1,4 @@
+import { BrandMark, BRAND_ASSETS } from "@/components/brand/BrandMark";
 import { LoginForm } from "./LoginForm";
 import { LoginHeroPanel } from "./LoginHeroPanel";
 
@@ -13,8 +14,8 @@ export default function LoginPage() {
       <div
         className="pointer-events-none absolute inset-0 bg-center bg-no-repeat opacity-[0.08]"
         style={{
-          backgroundImage: "url('/images/Cooperative_Bank_of_Oromia.png')",
-          backgroundSize: "45%",
+          backgroundImage: `url('${BRAND_ASSETS.watermark.stackedOnDark}')`,
+          backgroundSize: "min(420px, 45%)",
           backgroundPosition: "center 25%",
         }}
         aria-hidden
@@ -25,8 +26,15 @@ export default function LoginPage() {
 
         {/* Login form column */}
         <div className="flex w-full max-w-md flex-col gap-8 md:shrink-0">
-          <header className="text-center md:text-left">
-            <div className="mb-3 inline-block w-10 border-t-2 border-primary md:mb-4" aria-hidden />
+          <header className="flex flex-col items-center text-center md:items-start md:text-left">
+            <BrandMark
+              variant="horizontal"
+              surface="onDark"
+              width={220}
+              height={52}
+              className="mb-4 max-w-[220px]"
+              priority
+            />
             <h1 className="font-mono text-2xl font-semibold tracking-tight text-foreground">
               Merchant Nation Command
             </h1>
